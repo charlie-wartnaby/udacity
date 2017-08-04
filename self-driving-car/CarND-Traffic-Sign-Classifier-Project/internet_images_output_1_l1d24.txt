@@ -1,0 +1,52 @@
+Loading internet test images from disk...
+... 6 images loaded.
+43 class descriptions loaded
+Normalising images...
+... 6 images normalised.
+Running model to classify images...
+... model run complete.
+Final test accuracy on 6 internet images = 0.667
+4 out of 6 correctly classified
+Listing top 5 ranked softmax probabilities per image (correct choice flagged with '*')
+
+Top 5 softmax probabilities for image filename 1-resized_30_limit.jpg:
+* 1 1.000000 Speed limit (30km/h)
+  2 0.000000 End of speed limit (80km/h)
+  3 0.000000 Speed limit (20km/h)
+  4 0.000000 Speed limit (70km/h)
+  5 0.000000 End of no passing by vehicles over 3.5 metric tons
+
+Top 5 softmax probabilities for image filename 17-resized_no_entry.jpg:
+  1 1.000000 Yield
+* 2 0.000000 No entry
+  3 0.000000 No passing
+  4 0.000000 Stop
+  5 0.000000 Speed limit (60km/h)
+
+Top 5 softmax probabilities for image filename 18-resized_general_caution.jpg:
+* 1 1.000000 General caution
+  2 0.000000 Right-of-way at the next intersection
+  3 0.000000 Children crossing
+  4 0.000000 Traffic signals
+  5 0.000000 No passing
+
+Top 5 softmax probabilities for image filename 23-resized_slippery.jpg:
+* 1 0.997872 Slippery road
+  2 0.002005 No passing for vehicles over 3.5 metric tons
+  3 0.000058 Dangerous curve to the left
+  4 0.000055 Wild animals crossing
+  5 0.000009 End of no passing by vehicles over 3.5 metric tons
+
+Top 5 softmax probabilities for image filename 27-resized_pedestrians.jpg:
+  1 0.998650 Traffic signals
+  2 0.001304 General caution
+  3 0.000038 Dangerous curve to the left
+  4 0.000003 Slippery road
+  5 0.000002 No passing
+
+Top 5 softmax probabilities for image filename 28-resized_children.jpg:
+* 1 0.999972 Children crossing
+  2 0.000028 Dangerous curve to the right
+  3 0.000000 Speed limit (80km/h)
+  4 0.000000 End of no passing
+  5 0.000000 Road work

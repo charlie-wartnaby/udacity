@@ -1,0 +1,52 @@
+Loading internet test images from disk...
+... 6 images loaded.
+43 class descriptions loaded
+Normalising images...
+... 6 images normalised.
+Running model to classify images...
+... model run complete.
+Final test accuracy on 6 internet images = 1.000
+6 out of 6 correctly classified
+Listing top 5 ranked softmax probabilities per image (correct choice flagged with '*')
+
+Top 5 softmax probabilities for image filename 1-resized_30_limit.jpg:
+* 1 1.000000 Speed limit (30km/h)
+  2 0.000000 End of all speed and passing limits
+  3 0.000000 End of speed limit (80km/h)
+  4 0.000000 Dangerous curve to the right
+  5 0.000000 Keep right
+
+Top 5 softmax probabilities for image filename 17-resized_no_entry.jpg:
+* 1 0.714969 No entry
+  2 0.285031 Stop
+  3 0.000000 No passing
+  4 0.000000 Beware of ice/snow
+  5 0.000000 No passing for vehicles over 3.5 metric tons
+
+Top 5 softmax probabilities for image filename 18-resized_general_caution.jpg:
+* 1 1.000000 General caution
+  2 0.000000 End of no passing by vehicles over 3.5 metric tons
+  3 0.000000 End of no passing
+  4 0.000000 Roundabout mandatory
+  5 0.000000 Keep left
+
+Top 5 softmax probabilities for image filename 23-resized_slippery.jpg:
+* 1 1.000000 Slippery road
+  2 0.000000 No passing for vehicles over 3.5 metric tons
+  3 0.000000 Dangerous curve to the left
+  4 0.000000 Double curve
+  5 0.000000 Go straight or right
+
+Top 5 softmax probabilities for image filename 27-resized_pedestrians.jpg:
+* 1 0.999982 Pedestrians
+  2 0.000018 Bicycles crossing
+  3 0.000000 General caution
+  4 0.000000 Double curve
+  5 0.000000 Speed limit (20km/h)
+
+Top 5 softmax probabilities for image filename 28-resized_children.jpg:
+* 1 1.000000 Children crossing
+  2 0.000000 Go straight or right
+  3 0.000000 Bicycles crossing
+  4 0.000000 Dangerous curve to the right
+  5 0.000000 Bumpy road
