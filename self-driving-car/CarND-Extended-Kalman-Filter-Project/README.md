@@ -2,8 +2,11 @@
 Self-Driving Car Engineer Nanodegree Program
 
 Author: Charlie Wartnaby, Applus IDIADA
+
 Email: charlie.wartnaby@idiada.com
+
 Version: 1.0
+
 Date: 29Oct2017
 
 ## Notes against rubric
@@ -24,7 +27,9 @@ As noted in FusionEKF.cpp, the simulation was run using only laser measurements,
 radar measurements, or both. Here were the resulting RMSE values:
 
 Laser only: [0.0338 0.0238 0.4452 0.2339]
+
 Radar only: [0.0540 0.1130 0.2838 0.5129]
+
 Both:       [0.0095 0.0073 0.2052 0.2225]
 
 While the best results are obtained fusing data from both sensors, qualitatively at least
