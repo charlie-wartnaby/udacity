@@ -42,12 +42,7 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 
     // Initialise return vector to a copy of a dynamically-created
     // vector of required size
-    retVector_ = VectorXd(num_est_elements);
-
-    for (int i = 0; i < num_est_elements; i++)
-    {
-        retVector_[i] = 0.0;
-    }
+    retVector_ = VectorXd::Zero(num_est_elements);
 
     if (num_est_elements <= 0)
     {
@@ -71,6 +66,9 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 
         // Form mean by dividing by number of samples
         retVector_ /= num_est_points;      // element-wise division
+
+        // Finally, square root of that mean sum
+        retVector_ = retVector_.array().sqrt();
     }
 
     return retVector_; // Should be copied by caller so we can reuse
@@ -99,18 +97,14 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
     // Precompute factors that are used repeatedly, to reduce CPU use
     // (especially in square roots) and to simplify downstream code
     float px2_plus_py2         = px*px + py*py;
+
+    // Guard against division by zero before using that further
+    const float epsilon = 1e-12;
+    px2_plus_py2 = std::max(epsilon, px2_plus_py2);
+
     float root_px2_plus_py2    = sqrt(px2_plus_py2);
     float px2_plus_py2_pow_3_2 = px2_plus_py2 * root_px2_plus_py2;
 
-    // Check for division by zero
-    float epsilon = 1e-12;
-    if (fabs(px2_plus_py2) < epsilon ||
-        fabs(root_px2_plus_py2) < epsilon ||
-        fabs(px2_plus_py2_pow_3_2) < epsilon)
-    {
-        std::cout << "Div by zero error" << std::endl;
-        return retMatrix_;
-    }
 
     // Compute the Jacobian matrix
     // This specifically computes the Jacobian mapping the partial derivatives
@@ -130,4 +124,26 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
     retMatrix_(2, 3) = py / root_px2_plus_py2;
 
     return retMatrix_; // To be copied by caller so we can reuse our object
+}
+
+float Tools::NormaliseAnglePlusMinusPi(float angle)
+{
+    // Normalises the angle provided to be in the interval [-pi, pi]
+
+    // Not done by reference as we want to use it in at least one place
+    // on a matrix element which we can't pass directly as a reference
+
+    const float pi = 3.141592654;
+
+    while (angle < -pi)
+    {
+        angle += 2 * pi;
+    }
+
+    while (angle > pi)
+    {
+        angle -= 2 * pi;
+    }
+
+    return angle;
 }

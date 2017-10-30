@@ -100,9 +100,9 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
     // RESULTS: still followed trajectory pretty well using only laser or only
     // radar, but final RMSE values better using both, as we'd expect:
     //   sensor(s) RMSE x    y      vx     vy
-    //    laser    0.0338 0.0238 0.4452 0.2339
-    //    radar    0.0540 0.1130 0.2838 0.5129
-    //    both     0.0095 0.0073 0.2052 0.2225
+    //    laser    0.1839 0.1542 0.6672 0.4836
+    //    radar    0.2324 0.3361 0.5327 0.7162
+    //    both     0.0977 0.0854 0.4529 0.4717
 
 
   /*****************************************************************************
@@ -197,7 +197,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   // time we extrapolate to a new predicted state) is delta time dependent, because
   // the longer the dt we extrapolate over, the more uncertain our prediction is.
   
-  float noise_ax = 9.0, noise_ay = 9.0; // as directed above in template comment
+  const float noise_ax = 9.0, noise_ay = 9.0; // as directed above in template comment
 
   // The rest is my solution code from the relevant tutorial quiz "12. Laser Measurements Part 3"
 
@@ -205,8 +205,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   float dt2 = dt * dt;
   float dt3_over_2 = dt2 * dt / 2.0;
   float dt4_over_4 = dt2 * dt2 / 4.0;
-  float nax2 = noise_ax; // These noise terms were aleady squared in quiz, which wasn't obvious!
-  float nay2 = noise_ay; // (Are they here? Seems to make no difference anyway so assuming same as quiz.)
+  const float nax2 = noise_ax; // These noise terms were aleady squared in quiz, which wasn't obvious!
+  const float nay2 = noise_ay; // (Are they here? Seems to make no difference anyway so assuming same as quiz.)
   ekf_.Q_ << dt4_over_4 * nax2, 0,                 dt3_over_2 * nax2, 0,
              0,                 dt4_over_4 * nay2, 0,                 dt3_over_2 * nay2,
              dt3_over_2 * nax2, 0,                 dt2 * nax2,        0,

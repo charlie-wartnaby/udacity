@@ -10,6 +10,7 @@
 #include <iostream> // For debug output
 
 #include "kalman_filter.h"
+#include "tools.h"
 
 using namespace std;
 
@@ -91,8 +92,22 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
     // Note: angle rho is anticlockwise from x-axis (NOT like tutorial video,
     // but consistent with lecture material derivations)
     float rho     = sqrt(px*px + py*py);       // Polar distance from us
-    float phi     = atan2(py, px);             // Rho is anticlockwise from x-axis
-    float rho_dot = (px * vx + py * vy) / rho; // Radial velocity away from us
+    float phi, rho_dot;
+
+    // Guard against undefined angle and div by zero if given (0,0) coords
+    const float epsilon = 1e-6;
+    if (rho >= epsilon)
+    {
+        // Normal calculation if we have a finite position vector
+        phi = atan2(py, px);             // Rho is anticlockwise from x-axis
+        rho_dot = (px * vx + py * vy) / rho; // Radial velocity away from us
+    }
+    else
+    {
+        // Backup if we essentially have a zero position vector
+        phi = 0.0;
+        rho_dot = 0.0;
+    }
 
     h[0] = rho;
     h[1] = phi;
@@ -102,9 +117,7 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
     VectorXd y = VectorXd(z - h);
 
     // Project tips and tricks warned to keep angle in y normalised to [-pi, pi]
-    float pi = 3.141592654;
-    while (y[1] < -pi) y[1] += 2 * pi;
-    while (y[1] > pi)  y[1] -= 2 * pi;
+    y[1] = Tools::NormaliseAnglePlusMinusPi(y[1]);
 
     // The rest is common to laser and radar
     UpdateCommon(y);
@@ -123,7 +136,6 @@ void KalmanFilter::UpdateCommon(const VectorXd& y)
     MatrixXd K = P_ * Ht * Si;  // Kalman gain
     x_ = x_ + (K * y);          // New state, stronger K -> measurement dominates prev estimate
 
-    // Update covariance matrix
-    MatrixXd I = MatrixXd::Identity(P_.diagonalSize(), P_.diagonalSize());
-    P_ = (I - K * H_) * P_; // updated uncertainty covariance
+    // Update covariance matrix; P' = (I - KH).P
+    P_ -= K * H_ * P_; // updated uncertainty covariance
 }

@@ -29,6 +29,9 @@ public:
   */
   MatrixXd CalculateJacobian(const VectorXd& x_state);
 
+  // A utility to normalise angles
+  static float NormaliseAnglePlusMinusPi(float angle);
+
 private:
   /**
   * Statically-allocated objects that we can safely return from our helper methods
