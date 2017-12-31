@@ -19,9 +19,12 @@ kerbs or running into dirt areas etc.
 The PID control code is implemented in a straightforward manner fitting the
 template code structure, with most changes in PID.cpp. However, some changes
 were required to cope with the differing behaviour of the simulator in
-different graphics modes (see next).
+different graphics modes (see below).
 
 ## Expected effects of P, I and D terms
+
+The rubric asks for some description of the effect of the three different
+terms in the PID controller.
 
 ### Proportional term
 
@@ -78,12 +81,10 @@ time value, I added code to measure the real elapsed delta time
 as the controller ran with the simulator in different modes, and indeed
 the actual delta time in real-world clock terms was very different:
 
-|----Simulator mode----|-----Real delta t (ms)------|
-|----------------------|----------------------------|
+|    Simulator mode    |    Real delta t (ms)   |
+|:--------------------:|:--------------------------:|
 | 1400x1050 Fantastic  |   ~70 (110+ on battery!)   |
-|----------------------|----------------------------|
 | 320x240 Fastest      |   ~15                      |
-|----------------------|----------------------------|
 
 So I used this real delta time in the calculation of the integral
 and derivative terms. Like this, the same gains gave similar performance
@@ -126,42 +127,41 @@ control program by actually measuring delta time.
 
 Here is the pattern of changes I made:
 
-|-kP-|-kI-|-kD-|-avg CTE^2-|-Notes-|
-|----|----|----|-----------|-------|
-|-0.12 -|- 2 -|- 0.1 -|- 0.537048 -|- Initial starting point with simlator in 640x480 Simple mode -|
-|-0.14 -|- 2 -|- 0.1 -|- 0.418203 -|- Better, kept new kP -|
-|-0.14 -|- 3 -|- 0.1 -|- 0.425437 -|- Worse -|
-|-0.14 -|- 1.5 -|- 0.1 -|- 0.428351 -|- Worse -|
-|-0.14 -|- 2 -|- 0.15 -|- 0.432055 -|- Worse -|
-|-0.14 -|- 2 -|- 0.07 -|- 0.417766 -|- Better, kept new kD -|
-|-0.16 -|- 2 -|- 0.07 -|- 0.35272 -|- Better, kept new kP -|
-|-0.16 -|- 2.3 -|- 0.07 -|- 0.34264 -|- Better, kept new kI -|
-|-0.16 -|- 2.3 -|- 0.05 -|- 0.370054 -|- Worse -|
-|-0.16 -|- 2.3 -|- 0.09 -|- 0.36315 -|- Worse -|
-|-0.18 -|- 2.3 -|- 0.07 -|- 0.300748 -|- Better, kept new kP -|
-|-0.18 -|- 2.6 -|- 0.07 -|- 0.297074 -|- Better (just), kept new kI -|
-|-0.18 -|- 2.6 -|- 0.08 -|- 0.301443 -|- Touch worse -|
-|-0.18 -|- 2.6 -|- 0.06 -|- 0.303282 -|- Touch worse -|
-|-0.21 -|- 2.6 -|- 0.07 -|- 0.256032 -|- Felt underdamped, but avg error lower -|
-|-0.21 -|- 2.8 -|- 0.07 -|- 0.2499915 -|- Bit better -|
-|-0.21 -|- 2.8 -|- 0.075 -|- 0.260377 -|- Worse -|
-|-0.21 -|- 2.8 -|- 0.065 -|- 0.255698 -|- worse -|
-|-0.25 -|- 2.8 -|- 0.07 -|- 0.219205 -|- Better -|
-|-0.25 -|- 3 -|- 0.07 -|- 0.210587 -|- Bit better -|
-|-0.25 -|- 3 -|- 0.073 -|- 0.221458 -|- Worse -|
-|-0.25 -|- 3 -|- 0.068 -|- 0.224773 -|- Worse -|
-|-0.3 -|- 3 -|- 0.07 -|- 0.211253 -|- Touch worse -|
-|-0.23 -|- 3 -|- 0.07 -|- 0.230357 -|- Worse -|
-|-0.25 -|- 3.3 -|- 0.07 -|- 0.214969 -|- Worse -|
-|-0.25 -|- 2.9 -|- 0.07 -|- 0.216155 -|- Worse -|
-|-0.25 -|- 3 -|- 0.07 -|- 0.197 -|- Rerun using 320x240 Fastest mode as check, performing well with these simulator settings OK -|
-|-0.25 -|- 3 -|- 0.07 -|-  -|- Rerun using 1400x1050 Fantastic mode as check, but got oscillatory and went off-track. Also on battery so CPU may be slowed down -|
-|-0.18 -|- 2.6 -|- 0.07 -|- 0.839868 -|- Continuing using 1400x1050 Fantasstic mode, dialled back gains, barely stable but got round -|
-|-0.14 -|- 2 -|- 0.07 -|- 0.57 -|- 1400x1050 Fantatic: Still swaying a fair bit but stayed on track for 2+ laps -|
-|-0.14 -|- 2 -|- 0.07 -|- 0.439877 -|- Rerun using 320x240 Fastest mode as check, pretty smooth though a bit wide on some corners -|
-|-------|-----|--------|------------|---------------|
+| kP | kI| kD | avg CTE^2 | Notes |
+|:----:|:----:|:----:|:-----------:|:-------:|
+| .12 | 2 | 0.1 | 0.537048 | Initial starting point with simlator in 640x480 Simple mode |
+| .14 | 2 | 0.1 | 0.418203 | Better, kept new kP |
+| .14 | 3 | 0.1 | 0.425437 | Worse |
+| .14 | 1.5 | 0.1 | 0.428351 | Worse |
+| .14 | 2 | 0.15 | 0.432055 | Worse |
+| .14 | 2 | 0.07 | 0.417766 | Better, kept new kD |
+| .16 | 2 | 0.07 | 0.35272 | Better, kept new kP |
+| .16 | 2.3 | 0.07 | 0.34264 | Better, kept new kI |
+| .16 | 2.3 | 0.05 | 0.370054 | Worse |
+| .16 | 2.3 | 0.09 | 0.36315 | Worse |
+| .18 | 2.3 | 0.07 | 0.300748 | Better, kept new kP |
+| .18 | 2.6 | 0.07 | 0.297074 | Better (just), kept new kI |
+| .18 | 2.6 | 0.08 | 0.301443 | Touch worse |
+| .18 | 2.6 | 0.06 | 0.303282 | Touch worse |
+| .21 | 2.6 | 0.07 | 0.256032 | Felt underdamped, but avg error lower |
+| .21 | 2.8 | 0.07 | 0.2499915 | Bit better |
+| .21 | 2.8 | 0.075 | 0.260377 | Worse |
+| .21 | 2.8 | 0.065 | 0.255698 | worse |
+| .25 | 2.8 | 0.07 | 0.219205 | Better |
+| .25 | 3 | 0.07 | 0.210587 | Bit better |
+| .25 | 3 | 0.073 | 0.221458 | Worse |
+| .25 | 3 | 0.068 | 0.224773 | Worse |
+| .3 | 3 | 0.07 | 0.211253 | Touch worse |
+| .23 | 3 | 0.07 | 0.230357 | Worse |
+| .25 | 3.3 | 0.07 | 0.214969 | Worse |
+| .25 | 2.9 | 0.07 | 0.216155 | Worse |
+| .25 | 3 | 0.07 | 0.197 | Rerun using 320x240 Fastest mode as check, performing well with these simulator settings OK |
+| .25 | 3 | 0.07 |  | Rerun using 1400x1050 Fantastic mode as check, but got oscillatory and went off-track. Also on battery so CPU may be slowed down |
+| .18 | 2.6 | 0.07 | 0.839868 | Continuing using 1400x1050 Fantasstic mode, dialled back gains, barely stable but got round |
+| .14 | 2 | 0.07 | 0.57 | 1400x1050 Fantatic: Still swaying a fair bit but stayed on track for 2+ laps |
+| .14 | 2 | 0.07 | 0.439877 | Rerun using 320x240 Fastest mode as check, pretty smooth though a bit wide on some corners |
 
-This data is copied & pasted from the accompanying notes in
+This data is copied & pasted from the colour-highlighted accompanying notes in
 gain_optimisation.xlsx, which also charted previous tuning efforts
 before fixing problems in the program to cope with the simulator mode
 speed changes.
