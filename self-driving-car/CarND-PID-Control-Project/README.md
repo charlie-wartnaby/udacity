@@ -19,7 +19,9 @@ kerbs or running into dirt areas etc.
 The PID control code is implemented in a straightforward manner fitting the
 template code structure, with most changes in PID.cpp. However, some changes
 were required to cope with the differing behaviour of the simulator in
-different graphics modes (see below).
+different graphics modes (see below). Ultimately that meant the controller
+was not tuned optimally for any one simulator mode, but at least acceptably
+for all modes, at least as run on my PC.
 
 ## Expected effects of P, I and D terms
 
@@ -116,12 +118,12 @@ After that I used an informal approximation of the 'Twiddle' method
 presented in the lectures, i.e. nudging each gain in turn in one
 direction, the reverse direction if that made things worse, and reducing
 the increment if both directions were worse. I did this with the
-simulator in a middling 640x480 Normal mode (see above re simualtor
+simulator in a middling 640x480 Normal mode (see above re simulator
 mode effects). That converged OK on an appromimately optimal set
 of values.
 
 However, I then had to 'detune' the controller a little to make it stable
-still with the simualtor running in maximal 1400x1050 Fantastic mode,
+still with the simulator running in maximal 1400x1050 Fantastic mode,
 which has greater sample time, despite trying to allow for this in the
 control program by actually measuring delta time.
 
@@ -160,6 +162,9 @@ Here is the pattern of changes I made:
 | .18 | 2.6 | 0.07 | 0.839868 | Continuing using 1400x1050 Fantasstic mode, dialled back gains, barely stable but got round |
 | .14 | 2 | 0.07 | 0.57 | 1400x1050 Fantatic: Still swaying a fair bit but stayed on track for 2+ laps |
 | .14 | 2 | 0.07 | 0.439877 | Rerun using 320x240 Fastest mode as check, pretty smooth though a bit wide on some corners |
+
+So the end result was a bit of a compromise to work acceptably with all
+simulator modes, but not really optimally in any one mode.
 
 This data is copied & pasted from the colour-highlighted accompanying notes in
 gain_optimisation.xlsx, which also charted previous tuning efforts
