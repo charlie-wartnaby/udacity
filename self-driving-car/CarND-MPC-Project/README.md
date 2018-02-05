@@ -72,18 +72,24 @@ code as follows:
 
 * the initial actuator values (delta and a) were pinned at the 'old' values from
   the previous iteration of the solver using the upper and lower bounds:
-  ```vars_lowerbound[delta_start] = vars_upperbound[delta_start] = steering_cmd_prev_;
-  vars_lowerbound[a_start]     = vars_upperbound[a_start]     = throttle_cmd_prev_;```
+  ```
+  vars_lowerbound[delta_start] = vars_upperbound[delta_start] = steering_cmd_prev_;
+  vars_lowerbound[a_start]     = vars_upperbound[a_start]     = throttle_cmd_prev_;
+  ```
 
 * the first delta time value used in the computation was the latency, instead of
   the 'desired' dt value:
-  ```double this_dt = (t_idx == 1 ? latency_sec : dt);```
+  ```
+  double this_dt = (t_idx == 1 ? latency_sec : dt);
+  ```
 
 * the i=1 actuator values from the optimised solution were returned as the
   'new' command values, not i=0, as these correspond to the acuation that
   should be applied after the latency period has expired for optimal control
-  ```double new_steering_cmd = solution.x[delta_start + 1];
-  double new_throttle_cmd = solution.x[a_start + 1];```
+  ```
+  double new_steering_cmd = solution.x[delta_start + 1];
+  double new_throttle_cmd = solution.x[a_start + 1];
+  ```
 
 ## Polynomial fit
 
@@ -150,6 +156,11 @@ The weights were adjusted to give more influence to cross-track error and
 less to smoothness, but actually the behaviour was fairly insensitive to changes
 in these parameters.
 
+I also modified the computation of the cost function to iterate from i=1, not i=0;
+the i=0 state is already known and it is too late to change it, as I was taking the i=1
+(post-latency) values as my actuator commands. So it cannot help to include the i=0
+values in the cost function.
+
 ## Tuning and performance
 
 I started with N=10 and dt=0.1, but found that while a good trajectory could be
@@ -168,3 +179,7 @@ double dt = 0.25;          // Delta time (sec) between timesteps
 Even then I found I had to tune the dt value to give good enough control for
 the car to negotiate the track reliably, without extending the time horizon
 so far that unstable behaviour resulted from the optimiser.
+
+In general, much of the difficulty of this project was not the MPC principle,
+which is quite straightforward, but rather the understanding and debugging
+of the IPOPT optimiser, which was rather inscrutable.
