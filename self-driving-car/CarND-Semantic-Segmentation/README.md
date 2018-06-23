@@ -26,7 +26,7 @@ and only a very small proportion of non-road pixels (false positives).
 
 The project submission requires the files helper.py, main.py, project_tests.py and the 
 inference images from the runs folder are included in a zip file, which is included here
-as semantic_segregation_submission_package.zip. However, the source files are also
+as **semantic_segregation_submission_package.zip**. However, the source files are also
 uploaded separately to make browsing them easier on github.
 
 All unit tests pass.
@@ -35,7 +35,7 @@ Therefore all rubric points have been met.
 
 ## Programming Environment
 
-The work was done on a high-end HP laptop with an NVIDIA Quadro P3000, which was able to
+The work was done on a high-end HP laptop with an NVIDIA Quadro P3000 GPU, which was able to
 process an epoch in approximately one minute. The software ran under Windows 10 using the
 provided Anaconda carnd-advdl-odlab environment from the optional object detection lab
 including tensorflow-1.4.
@@ -79,7 +79,7 @@ With the custom decoder layers successfully added, the overall model graph shows
 the skip connections from selected VGG layers to the decoder (long vertical lines
 on the right hand side):
 
-![Graph Overview](tensorboard_screenshot_overview_skip_connections.png "Graph Overview")
+![Custom layers](tensorboard_screenshot_custom_layers.png "Custom layers")
 
 The custom decoder layers for one experiment are shown here:
 
