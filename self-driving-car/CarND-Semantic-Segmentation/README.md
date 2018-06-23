@@ -79,11 +79,11 @@ With the custom decoder layers successfully added, the overall model graph shows
 the skip connections from selected VGG layers to the decoder (long vertical lines
 on the right hand side):
 
-![Custom layers](tensorboard_screenshot_custom_layers.png "Custom layers")
+![Custom layers](tensorboard_screenshot_overview_skip_connections.png "Custom layers")
 
 The custom decoder layers for one experiment are shown here:
 
-![Decoder](tensorboard_screenshot_overview_skip_connections.png "Decoder")
+![Decoder](tensorboard_screenshot_custom_layers.png "Decoder")
 
 ### Hyperparameter tuning
 
