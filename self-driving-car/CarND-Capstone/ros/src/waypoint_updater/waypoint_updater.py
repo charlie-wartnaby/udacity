@@ -4,8 +4,10 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 from scipy.spatial import KDTree # suggested in walkthrough video
+import numpy as np
 
 import math
+import sys
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -50,10 +52,11 @@ class WaypointUpdater(object):
 
     def loop(self):
         # Initially from 'partial walkthrough' video
-        rate = rospy.Rate(50) # May be excessive
+        rate = rospy.Rate(1) # 50 suggested but may be excessive
         while not rospy.is_shutdown():
             if self.pose and self.base_waypoints:
                 # Get closest waypoint
+                sys.stderr.write("loop() getting closest waypoints\n")
                 closest_waypoint_idx = self.get_closest_waypoint_idx()
                 self.publish_waypoints(closest_waypoint_idx)
             rate.sleep()
@@ -76,7 +79,7 @@ class WaypointUpdater(object):
         # Take dot product (get distance?)
         # Plane is perpendicular to vector from prev_vect to cl_vect.
         # Want to check if pos_vect is ahead 
-        val = np.dot(cl_vect, prev_vect, pos_vect, cl_vect)
+        val = np.dot(cl_vect - prev_vect, pos_vect - cl_vect)
         # If dot product is negative, vector from prev_vect to cl_vect and
         # vector from cl_vect to pos_vect are pointing in opposite directions
         # relative to that plane, implying pos_vect is on the same side of
@@ -94,7 +97,7 @@ class WaypointUpdater(object):
 
     def publish_waypoints(self, closest_idx):
         # Initially from 'partial walkthrough' video
-        lane = lane()
+        lane = Lane()
         lane.header = self.base_waypoints.header
         # Python will just go to end of list, but won't wrap around.
         # CW: but maybe we should wrap around -- do we expect waypoints to form a loop?
@@ -110,17 +113,17 @@ class WaypointUpdater(object):
     def waypoints_cb(self, waypoints):
         # TODO: Implement
 	    # Starting with suggested code from 'partial walkthrough' video
-
+        sys.stderr.write("waypoints_cb\n")
         # Video explained this is a latched subscriber, so we should get
         # this message only once, rather than saving the whole set of base
         # waypoints periodically, which would be very wasteful
-        self.base_waypoings = waypoints
+        self.base_waypoints = waypoints
         if not self.waypoints_2d:
             # Collapse waypoints to just 2D coordinates
             self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in waypoints.waypoints]
             # KDTree will allow very efficient search for nearest points
-            self_waypoint_tree = KDTree(self.waypoints_2d)
-        pass
+            self.waypoint_tree = KDTree(self.waypoints_2d)
+            sys.stderr.write("cached waypoint tree\n")
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
@@ -147,6 +150,8 @@ class WaypointUpdater(object):
 
 if __name__ == '__main__':
     try:
+        sys.stderr.write("waypoint_updater:main\n")
+        print("print(main)")
         WaypointUpdater()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start waypoint updater node.')
