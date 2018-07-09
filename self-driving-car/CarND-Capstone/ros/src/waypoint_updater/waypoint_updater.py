@@ -48,15 +48,15 @@ class WaypointUpdater(object):
         self.loop() # instead of rospy.spin() so we can control rate
         # rospy.spin()
 
-    def loop(self)
+    def loop(self):
         # Initially from 'partial walkthrough' video
         rate = rospy.Rate(50) # May be excessive
         while not rospy.is_shutdown():
             if self.pose and self.base_waypoints:
-            # Get closest waypoint
-            closest_waypoint_idx = self.get_closest_waypoint_idx()
-            self.publish_waypoints(closest_waypoint_idx)
-        rate.sleep()
+                # Get closest waypoint
+                closest_waypoint_idx = self.get_closest_waypoint_idx()
+                self.publish_waypoints(closest_waypoint_idx)
+            rate.sleep()
 
     def get_closest_waypoint_idx(self):
         # Initially from 'partial walkthrough' video
@@ -92,11 +92,13 @@ class WaypointUpdater(object):
 
         return closest_idx
 
-    def publish_waypoints(self, closest_idx)
+    def publish_waypoints(self, closest_idx):
         # Initially from 'partial walkthrough' video
         lane = lane()
         lane.header = self.base_waypoints.header
-        lane_waypoints = self.base_waypoints.waypoints[closest_idx:closest_idx + LOOKAHEAD_WPS] # Python will just go to end of list, but won't wrap around
+        # Python will just go to end of list, but won't wrap around.
+        # CW: but maybe we should wrap around -- do we expect waypoints to form a loop?
+        lane_waypoints = self.base_waypoints.waypoints[closest_idx:closest_idx + LOOKAHEAD_WPS]
         self.final_waypoints_pub.publish(lane)
 
     def pose_cb(self, msg):
@@ -107,7 +109,7 @@ class WaypointUpdater(object):
 
     def waypoints_cb(self, waypoints):
         # TODO: Implement
-	# Starting with suggested code from 'partial walkthrough' video
+	    # Starting with suggested code from 'partial walkthrough' video
 
         # Video explained this is a latched subscriber, so we should get
         # this message only once, rather than saving the whole set of base
@@ -115,7 +117,7 @@ class WaypointUpdater(object):
         self.base_waypoings = waypoints
         if not self.waypoints_2d:
             # Collapse waypoints to just 2D coordinates
-            self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in waypoints.waypoint]
+            self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in waypoints.waypoints]
             # KDTree will allow very efficient search for nearest points
             self_waypoint_tree = KDTree(self.waypoints_2d)
         pass
