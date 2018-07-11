@@ -258,6 +258,8 @@ geometry_msgs::Twist PurePursuit::calcTwist(double curvature, double cmd_velocit
   geometry_msgs::Twist twist;
   twist.linear.x = cmd_velocity;
   if (!following_flag)
+  if (true) // CW: From DBW Walkthrough video 11min30 suggested changing this to avoid glitchy
+            //     transitions that give abrupt steering commands
   {
     //ROS_ERROR_STREAM("Not following");
     twist.angular.z = current_velocity_.twist.linear.x * curvature;
