@@ -67,7 +67,7 @@ class Controller(object):
         throttle = self.throttle_controller.step(vel_error, sample_time)
         brake = 0.0
         
-        if linear_vel == 0.0 and current_vel < 0.1
+        if linear_vel == 0.0 and current_vel < 0.1:
             # Hold at a stop against creep torque of automatic transmission
             throttle = 0.0
             brake = 700 # sufficient torque (in Nm) to keep stopped
@@ -78,7 +78,7 @@ class Controller(object):
             throttle = 0.0
             decel = max(vel_error, self.decel_limit) # CW units m/s and m/s2 though??
             brake = abs(decel) * self.vehicle_mass * self.wheel_radius # torque in Nm
-        else
+        else:
             # Keep controller value
             pass
             
