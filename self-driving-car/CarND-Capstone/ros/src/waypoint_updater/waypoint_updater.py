@@ -3,6 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 from scipy.spatial import KDTree # suggested in walkthrough video
 import numpy as np
 
@@ -35,7 +36,8 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
+        # CW: from 'full waypoint' walkthrough
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
@@ -46,6 +48,8 @@ class WaypointUpdater(object):
         self.base_waypoints = None
         self.waypoints_2d = None
         self.waypoints_tree = None
+        
+        self.stopline_wp_idx = -1
 
         self.loop() # instead of rospy.spin() so we can control rate
         # rospy.spin()
@@ -96,14 +100,52 @@ class WaypointUpdater(object):
         return closest_idx
 
     def publish_waypoints(self, closest_idx):
-        # Initially from 'partial walkthrough' video
+        # CW: initially from 'full waypoint' walkthrough
+        final_lane = self.generate_lane()
+        self.final_waypoints_pub.publish(final_lane)
+        
+    def generate_lane(self):
+        # Initially from 'partial walkthrough' video, then modified for 'full waypoint' walkthrough
         lane = Lane()
-        lane.header = self.base_waypoints.header
+        
+        closest_idx = self.get_closest_waypoint_idx()
+        farthest_idx = closest_idx + LOOKAHEAD_WPS
+
         # Python will just go to end of list, but won't wrap around.
         # CW: but maybe we should wrap around -- do we expect waypoints to form a loop?
-        lane_waypoints = self.base_waypoints.waypoints[closest_idx:closest_idx + LOOKAHEAD_WPS]
-        self.final_waypoints_pub.publish(lane)
+        base_waypoints = self.base_waypoints.waypoints[closest_idx:farthest_idx]
+        # Now have small subset of waypoints, can process them reasonably fast
+        
+        if self.stopline_wp_idx == -1 or (self.stopline_wp_idx >= farthest_idx):
+            lane.waypoints = base_waypoints
+        else:
+            lane.waypoints = self.declerate_waypoints(base_waypoints, closest_idx)
+            
+        return lane
 
+    def decelerate_waypoints(self, waypoints, closest_idx):
+        # CW: initially from 'full waypoint' walkthrough from ~2mins
+        decelerated_points = []
+        for i, wp in enumerate(waypoints):
+            # Avoid overwriting base waypoints, create new ones:
+            p = Waypoint()
+            p.pose = wp.pose
+            # Two waypoints back from line so front of car stops at line
+            stop_idx = max(self.stopline_wp_idx - closests_idx - 2, 0)
+            # Approach zero speed on square root curve, i.e. gentle braking initially,
+            # getting stronger as approach stop line (but could make for a harsh
+            # stop so could do something else here, e.g. nice S-curve)
+            dist = self.distance(waypoints, i, stop_idx)
+            vel = math.sqrt(2 * MAX_DECEL * dist)
+            if vel < 1.0:
+                vel = 0.0 # come to full stop
+            
+            # Clip square root vel so it doesn't exceed vel we had anyway
+            p.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
+            decelerated_points.append(p)
+            
+        return decelerated_points
+        
     def pose_cb(self, msg):
         # TODO: Implement
         # From 'partial walkthrough' video, just grab latest pose, will be called often:
@@ -127,6 +169,8 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
+        # CW initially from 'full waypoint' walkthrough ~1min21
+        self.stopline_wp_idx = msg.data
         pass
 
     def obstacle_cb(self, msg):
