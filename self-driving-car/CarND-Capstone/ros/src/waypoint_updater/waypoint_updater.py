@@ -60,8 +60,8 @@ class WaypointUpdater(object):
         while not rospy.is_shutdown():
             if self.pose and self.base_waypoints:
                 # Get closest waypoint
-                sys.stderr.write("loop() getting closest waypoints\n")
                 closest_waypoint_idx = self.get_closest_waypoint_idx()
+                #sys.stderr.write("waypoint_updater: loop() got closest waypoint idx=%d\n" % closest_waypoint_idx)
                 self.publish_waypoints(closest_waypoint_idx)
             rate.sleep()
 
@@ -102,6 +102,8 @@ class WaypointUpdater(object):
     def publish_waypoints(self, closest_idx):
         # CW: initially from 'full waypoint' walkthrough
         final_lane = self.generate_lane()
+        #sys.stderr.write("waypoint_updater: generate_lane() returned lane with %d waypoints\n" %
+        #                             len(final_lane.waypoints))
         self.final_waypoints_pub.publish(final_lane)
         
     def generate_lane(self):
@@ -155,7 +157,7 @@ class WaypointUpdater(object):
     def waypoints_cb(self, waypoints):
         # TODO: Implement
 	    # Starting with suggested code from 'partial walkthrough' video
-        sys.stderr.write("waypoints_cb\n")
+        #sys.stderr.write("waypoints_cb\n")
         # Video explained this is a latched subscriber, so we should get
         # this message only once, rather than saving the whole set of base
         # waypoints periodically, which would be very wasteful
@@ -165,7 +167,7 @@ class WaypointUpdater(object):
             self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in waypoints.waypoints]
             # KDTree will allow very efficient search for nearest points
             self.waypoint_tree = KDTree(self.waypoints_2d)
-            sys.stderr.write("cached waypoint tree\n")
+            #sys.stderr.write("waypoint_updater: cached tree with %d elements\n" % len(self.waypoints_2d))
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
@@ -194,7 +196,7 @@ class WaypointUpdater(object):
 
 if __name__ == '__main__':
     try:
-        sys.stderr.write("waypoint_updater:main\n")
+        #sys.stderr.write("waypoint_updater:main\n")
         print("print(main)")
         WaypointUpdater()
     except rospy.ROSInterruptException:
