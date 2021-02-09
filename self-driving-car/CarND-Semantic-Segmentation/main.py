@@ -44,9 +44,9 @@ def load_vgg(sess, vgg_path):
     vgg_layer7_out_tensor_name = 'layer7_out:0'  # Walkthrough: pool5 layer
     
     # Following walkthrough tips
-    tf.saved_model.loader.load(sess, [vgg_tag], vgg_path)
+    tf.compat.v1.saved_model.loader.load(sess, [vgg_tag], vgg_path)
 
-    graph = tf.get_default_graph()
+    graph = tf.compat.v1.get_default_graph()
 
     image_input = graph.get_tensor_by_name(vgg_input_tensor_name)
     keep_prob   = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
@@ -121,12 +121,12 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # Upsample by 2. We need to work our way down from a kernel depth of 4096
     # to just our number of classes (i.e. 2). Should we do this all in one go?
     # Or keep more depth in as we work upwards? For now doing it all in one hit.
-    layer8 = tf.layers.conv2d_transpose(vgg_layer7_out,
+    layer8 = tf.compat.v1.layers.conv2d_transpose(vgg_layer7_out,
                                         num_classes, # so going down from 4096 to 2, is this a good idea yet?!
                                         4, # kernel size taken from classroom example, might experiment
                                         2, # stride causes upsampling
                                         padding='same',
-                                        kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                         name='layer8')
 
     # Now we're at 10x36x2 so we have same pixel resolution as layer4_out. Can't directly add
@@ -134,44 +134,44 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # convolution only downsample to 512 for compatibility... might try that later)
 
     # Squash layer4 output with 1x1 convolution so that it has compatible filter depth (i.e. num_classes)
-    layer4_squashed = tf.layers.conv2d(vgg_layer4_out,
+    layer4_squashed = tf.compat.v1.layers.conv2d(vgg_layer4_out,
                                        num_classes, # new number of filters
                                        1,    # 1x1 convolution so kernel size 1
                                        padding='same',
-                                       kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                       kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                        name='layer4_squashed')
 
     # now we can add skip layer of this dimension taken from corresponding encoder layer
     layer8_plus_layer4 = tf.add(layer8, layer4_squashed, name='layer8_plus_layer4')
 
     # upsample by 2
-    layer9 = tf.layers.conv2d_transpose(layer8_plus_layer4,
+    layer9 = tf.compat.v1.layers.conv2d_transpose(layer8_plus_layer4,
                                         num_classes,
                                         4, # kernel size taken from classroom example, might experiment
                                         2, # stride causes upsampling
                                         padding='same',
-                                        kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                         name='layer9')
 
     # Now we're at 20x72x2 so same pixel resolution as layer3_out, but need to squash that from
     # 256 filters to 2 (num_classes) before we can add it in as skip connection
-    layer3_squashed = tf.layers.conv2d(vgg_layer3_out,
+    layer3_squashed = tf.compat.v1.layers.conv2d(vgg_layer3_out,
                                        num_classes, # new number of filters
                                        1,    # 1x1 convolution so kernel size 1
                                        padding='same',
-                                       kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                       kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                        name='layer3_squashed')
 
     # now we can add skip layer of this dimension taken from corresponding encoder layer
     layer9_plus_layer3 = tf.add(layer9, layer3_squashed, name='layer9_plus_layer3')
 
     # upsample by 8 to get back to original image size
-    layer10 = tf.layers.conv2d_transpose(layer9_plus_layer3,
+    layer10 = tf.compat.v1.layers.conv2d_transpose(layer9_plus_layer3,
                                         num_classes,
                                         32, # Finding quite large kernel works nicely
                                         8, # stride causes upsampling
                                         padding='same',
-                                        kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                         name='layer10')
     # so now we should be at 160x576x2, same as original image size, 2 classes
 
@@ -202,9 +202,9 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     # Reshape labels before feeding to TensorFlow session
 
     # Similar code to traffic sign classifier project now:
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=correct_label, name='cross_entropy')
-    cross_entropy_loss = tf.reduce_mean(cross_entropy, name='cross_entropy_loss')
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, name='optimizer')
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=tf.stop_gradient(correct_label), name='cross_entropy')
+    cross_entropy_loss = tf.reduce_mean(input_tensor=cross_entropy, name='cross_entropy_loss')
+    optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate, name='optimizer')
     train_op = optimizer.minimize(cross_entropy_loss, name='train_op')
 
     return (logits, train_op, cross_entropy_loss)
@@ -296,7 +296,7 @@ def run():
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # Path to vgg model
         vgg_path = os.path.join(data_dir, 'vgg')
 
@@ -323,9 +323,9 @@ def run():
         # before adding my layers to understand how to connect to unmodified VGG layers. Now
         # doing afterwards to include picture in write-up that includes my layers.
         if True:  # Turned off for most runs when not debugging
-            print(tf.trainable_variables()) # also trying to understand what we've got
+            print(tf.compat.v1.trainable_variables()) # also trying to understand what we've got
             log_path = os.path.join(vgg_path, 'logs')
-            writer = tf.summary.FileWriter(log_path, graph=sess.graph)
+            writer = tf.compat.v1.summary.FileWriter(log_path, graph=sess.graph)
             # Then visualise as follows:
             # >tensorboard --logdir=C:\Users\UK000044\git\CarND-Semantic-Segmentation\data\vgg\logs --host localhost
             # Open http://localhost:6006 in browser (if don't specify --host, in Windows 10 uses PC name, and 
@@ -334,17 +334,17 @@ def run():
         # CW: add operations to classify each pixel by class and assess performance
         # Input label size dynamic because have odd number of images as last batch; can get away without specifying 
         # shape in such detail (e.g. [None,None,None,num_classes] but specifying those we know to hopefully make bugs more apparent
-        correct_label = tf.placeholder(tf.float32, shape=[None,image_shape[0],image_shape[1],num_classes], name='correct_label')
+        correct_label = tf.compat.v1.placeholder(tf.float32, shape=[None,image_shape[0],image_shape[1],num_classes], name='correct_label')
 
         # Reshape labels as one-hot matrix spanning all of the pixels from all of the images concatenated together
         flattened_label = tf.reshape(correct_label, (-1, num_classes), name='flattened_label')
 
-        learning_rate = tf.placeholder(tf.float32, shape=(), name='learning_rate')
+        learning_rate = tf.compat.v1.placeholder(tf.float32, shape=(), name='learning_rate')
 
         logits, train_op, cross_entropy_loss = optimize(layer_output, correct_label, learning_rate, num_classes)
 
         # CW: have to initialise variables at some point
-        init_op = tf.global_variables_initializer()
+        init_op = tf.compat.v1.global_variables_initializer()
         sess.run(init_op)
 
         # DONE: Train NN using the train_nn function
