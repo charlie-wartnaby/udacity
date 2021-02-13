@@ -2,12 +2,12 @@ import re
 import random
 import numpy as np
 import os.path
-import scipy.misc
 import shutil
 import zipfile
 import time
 import tensorflow as tf
 from glob import glob
+from PIL import Image
 from urllib.request import urlretrieve
 from tqdm import tqdm
 
@@ -100,8 +100,10 @@ def gen_batch_function(data_folder, image_shape):
             for image_file in image_paths[batch_i:batch_i+batch_size]:
                 gt_image_file = label_paths[os.path.basename(image_file)]
 
-                image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)       # real photo
-                gt_image = scipy.misc.imresize(scipy.misc.imread(gt_image_file), image_shape) # ground truth image
+                unscaled_image = Image.open(image_file)       # real photo
+                image = np.array(unscaled_image.resize(image_shape))
+                unscaled_gt_image = Image.open(image_file)       # ground truth image
+                gt_image = np.array(unscaled_gt_image.resize(image_shape))
 
                 gt_bg = np.all(gt_image == background_color, axis=2) # CW: for each pixel, is it background (red)?
                 
@@ -137,7 +139,8 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
     :return: Output for for each test image
     """
     for image_file in glob(os.path.join(data_folder, 'image_2', '*.png')):
-        image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
+        unscaled_image = Image.open(image_file)
+        image = np.array(unscaled_image.resize(image_shape))
 
         im_softmax = sess.run(
             [tf.nn.softmax(logits)],
@@ -145,8 +148,8 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
         im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
         segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
         mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
-        mask = scipy.misc.toimage(mask, mode="RGBA")
-        street_im = scipy.misc.toimage(image)
+        mask = Image.fromarray(mask, mode="RGBA")
+        street_im = Image.fromarray(image)
         street_im.paste(mask, box=None, mask=mask)
 
         yield os.path.basename(image_file), np.array(street_im)
@@ -164,4 +167,4 @@ def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_p
     image_outputs = gen_test_output(
         sess, logits, keep_prob, input_image, os.path.join(data_dir, 'data_road/testing'), image_shape)
     for name, image in image_outputs:
-        scipy.misc.imsave(os.path.join(output_dir, name), image)
+        image.save(os.path.join(output_dir, name))
