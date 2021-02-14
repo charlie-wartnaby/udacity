@@ -278,7 +278,7 @@ def run():
     # CW: originals are 1242x375 so we are using shrunk and somewhat squashed versions
     # (more extreme letterbox aspect ratio than originals). Shrinking will reduce training
     #  workload.
-    image_shape = (160, 576)
+    image_shape = (576, 160)  # width, height to fit Pillow.Image (prev scipy.image usage transposed)
 
     data_dir = './data'
     runs_dir = './runs'
@@ -286,7 +286,7 @@ def run():
 
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 50 # Model pretty much converged after this time and no apparent overtraining
-    batch_size = 6 # Fits my Quadro P3000 device without memory allocation warning
+    batch_size = 1 # 6 fitted my Quadro P3000 device without memory allocation warning
     # Other hyperparameters in train_nn(); would have put them here but went with template calling structure
 
     # Download pretrained vgg model
@@ -322,7 +322,7 @@ def run():
         # CW: for debug, want to visualise model structure in Tensorboard; initially did this
         # before adding my layers to understand how to connect to unmodified VGG layers. Now
         # doing afterwards to include picture in write-up that includes my layers.
-        if True:  # Turned off for most runs when not debugging
+        if False:  # Turned off for most runs when not debugging
             print(tf.compat.v1.trainable_variables()) # also trying to understand what we've got
             log_path = os.path.join(vgg_path, 'logs')
             writer = tf.compat.v1.summary.FileWriter(log_path, graph=sess.graph)
@@ -334,7 +334,8 @@ def run():
         # CW: add operations to classify each pixel by class and assess performance
         # Input label size dynamic because have odd number of images as last batch; can get away without specifying 
         # shape in such detail (e.g. [None,None,None,num_classes] but specifying those we know to hopefully make bugs more apparent
-        correct_label = tf.compat.v1.placeholder(tf.float32, shape=[None,image_shape[0],image_shape[1],num_classes], name='correct_label')
+        # Note: image shape transposed using Pillow Image.open and Numpy conversion compared with original scipy function
+        correct_label = tf.compat.v1.placeholder(tf.float32, shape=[None,image_shape[1],image_shape[0],num_classes], name='correct_label')
 
         # Reshape labels as one-hot matrix spanning all of the pixels from all of the images concatenated together
         flattened_label = tf.reshape(correct_label, (-1, num_classes), name='flattened_label')
