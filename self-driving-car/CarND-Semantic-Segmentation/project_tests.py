@@ -142,6 +142,12 @@ def test_train_nn(train_nn):
 
 @test_safe
 def test_for_kitti_dataset(data_dir):
+    # Note: should do auto download of this dataset if not present, like maybe_download_pretrained_vgg().
+    # http://www.cvlibs.net/datasets/kitti/eval_road.php
+    # --> https://s3.eu-central-1.amazonaws.com/avg-kitti/data_road.zip
+    # Downloaded using wget in WSL shell
+    # Extracted to CarND-Semantic-Segmentation\data\data_road
+
     kitti_dataset_path = os.path.join(data_dir, 'data_road')
     training_labels_count = len(glob(os.path.join(kitti_dataset_path, 'training/gt_image_2/*_road_*.png')))
     training_images_count = len(glob(os.path.join(kitti_dataset_path, 'training/image_2/*.png')))

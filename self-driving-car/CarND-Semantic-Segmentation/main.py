@@ -265,7 +265,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
 
         elapsed_time = str(datetime.timedelta(seconds=(time.time() - start_time)))
         print("")
-        print("Epoch:", epoch, "Loss/batch:", total_loss / batches_run, "time so far:", elapsed_time, end='', flush=True)
+        print("Epoch:", epoch, "Loss/batch:", total_loss / batches_run, "time so far:", elapsed_time)
 
     print("")
 
@@ -284,9 +284,11 @@ def run():
     runs_dir = './runs'
     tests.test_for_kitti_dataset(data_dir)
 
+    quick_run_test = False # For debug
+
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
-    epochs = 50 # Model pretty much converged after this time and no apparent overtraining
-    batch_size = 1 # 6 fitted my Quadro P3000 device without memory allocation warning
+    epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
+    batch_size = 1 if quick_run_test else 6 # fitted my Quadro P3000 device without memory allocation warning
     # Other hyperparameters in train_nn(); would have put them here but went with template calling structure
 
     # Download pretrained vgg model
@@ -301,7 +303,7 @@ def run():
         vgg_path = os.path.join(data_dir, 'vgg')
 
         # Create function to get batches
-        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
+        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape, quick_run_test)
 
         # OPTIONAL: Augment Images for better results
         #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network

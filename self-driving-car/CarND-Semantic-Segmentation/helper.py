@@ -58,7 +58,7 @@ def maybe_download_pretrained_vgg(data_dir):
         os.remove(os.path.join(vgg_path, vgg_filename))
 
 
-def gen_batch_function(data_folder, image_shape):
+def gen_batch_function(data_folder, image_shape, quick_run_test):
     """
     Generate function to create batches of training data
     :param data_folder: Path to folder that contains all the datasets
@@ -93,8 +93,9 @@ def gen_batch_function(data_folder, image_shape):
 
         background_color = np.array([255, 0, 0]) # CW: red
 
+        num_images = 10 if quick_run_test else len(image_paths)
         random.shuffle(image_paths)
-        for batch_i in range(0, len(image_paths), batch_size): # divide full (shuffled) set into batches
+        for batch_i in range(0, num_images, batch_size): # divide full (shuffled) set into batches
             images = []
             gt_images = []
             for image_file in image_paths[batch_i:batch_i+batch_size]:
