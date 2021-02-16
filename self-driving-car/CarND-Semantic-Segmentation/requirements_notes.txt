@@ -1,3 +1,6 @@
+On Ubuntu have tensorflow 2.2.0 not working with cudnn 7.6.5 (probably)
+Couldn't downgrade tensorflow to 2.1 with Python 3.8.* so tried Python 3.7.9
+
 Started with default Anaconda tensorflow install from late 2020.
 Added a couple of Python packages, default current versions early 2021:
 
