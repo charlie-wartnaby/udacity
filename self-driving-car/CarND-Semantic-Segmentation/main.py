@@ -20,12 +20,30 @@ import project_tests as tests
 assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
 print('TensorFlow Version: {}'.format(tf.__version__))
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Currently, memory growth needs to be the same across GPUs
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        # Memory growth must be set before GPUs have been initialized
+        print(e)
+        
 # Check for a GPU
 if not tf.test.gpu_device_name():
     warnings.warn('No GPU found. Please use a GPU to train your neural network.')
 else:
     print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
+from tensorflow.compat.v1 import ConfigProto
+from tensorflow.compat.v1 import InteractiveSession
+
+config = ConfigProto()
+config.gpu_options.allow_growth = True
+session = InteractiveSession(config=config)
 
 def load_vgg(sess, vgg_path):
     """
@@ -44,9 +62,9 @@ def load_vgg(sess, vgg_path):
     vgg_layer7_out_tensor_name = 'layer7_out:0'  # Walkthrough: pool5 layer
     
     # Following walkthrough tips
-    tf.saved_model.loader.load(sess, [vgg_tag], vgg_path)
+    tf.compat.v1.saved_model.loader.load(sess, [vgg_tag], vgg_path)
 
-    graph = tf.get_default_graph()
+    graph = tf.compat.v1.get_default_graph()
 
     image_input = graph.get_tensor_by_name(vgg_input_tensor_name)
     keep_prob   = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
@@ -121,12 +139,12 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # Upsample by 2. We need to work our way down from a kernel depth of 4096
     # to just our number of classes (i.e. 2). Should we do this all in one go?
     # Or keep more depth in as we work upwards? For now doing it all in one hit.
-    layer8 = tf.layers.conv2d_transpose(vgg_layer7_out,
+    layer8 = tf.compat.v1.layers.conv2d_transpose(vgg_layer7_out,
                                         num_classes, # so going down from 4096 to 2, is this a good idea yet?!
                                         4, # kernel size taken from classroom example, might experiment
                                         2, # stride causes upsampling
                                         padding='same',
-                                        kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                         name='layer8')
 
     # Now we're at 10x36x2 so we have same pixel resolution as layer4_out. Can't directly add
@@ -134,44 +152,44 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # convolution only downsample to 512 for compatibility... might try that later)
 
     # Squash layer4 output with 1x1 convolution so that it has compatible filter depth (i.e. num_classes)
-    layer4_squashed = tf.layers.conv2d(vgg_layer4_out,
+    layer4_squashed = tf.compat.v1.layers.conv2d(vgg_layer4_out,
                                        num_classes, # new number of filters
                                        1,    # 1x1 convolution so kernel size 1
                                        padding='same',
-                                       kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                       kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                        name='layer4_squashed')
 
     # now we can add skip layer of this dimension taken from corresponding encoder layer
     layer8_plus_layer4 = tf.add(layer8, layer4_squashed, name='layer8_plus_layer4')
 
     # upsample by 2
-    layer9 = tf.layers.conv2d_transpose(layer8_plus_layer4,
+    layer9 = tf.compat.v1.layers.conv2d_transpose(layer8_plus_layer4,
                                         num_classes,
                                         4, # kernel size taken from classroom example, might experiment
                                         2, # stride causes upsampling
                                         padding='same',
-                                        kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                         name='layer9')
 
     # Now we're at 20x72x2 so same pixel resolution as layer3_out, but need to squash that from
     # 256 filters to 2 (num_classes) before we can add it in as skip connection
-    layer3_squashed = tf.layers.conv2d(vgg_layer3_out,
+    layer3_squashed = tf.compat.v1.layers.conv2d(vgg_layer3_out,
                                        num_classes, # new number of filters
                                        1,    # 1x1 convolution so kernel size 1
                                        padding='same',
-                                       kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                       kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                        name='layer3_squashed')
 
     # now we can add skip layer of this dimension taken from corresponding encoder layer
     layer9_plus_layer3 = tf.add(layer9, layer3_squashed, name='layer9_plus_layer3')
 
     # upsample by 8 to get back to original image size
-    layer10 = tf.layers.conv2d_transpose(layer9_plus_layer3,
+    layer10 = tf.compat.v1.layers.conv2d_transpose(layer9_plus_layer3,
                                         num_classes,
                                         32, # Finding quite large kernel works nicely
                                         8, # stride causes upsampling
                                         padding='same',
-                                        kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3),
+                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                         name='layer10')
     # so now we should be at 160x576x2, same as original image size, 2 classes
 
@@ -202,9 +220,9 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     # Reshape labels before feeding to TensorFlow session
 
     # Similar code to traffic sign classifier project now:
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=correct_label, name='cross_entropy')
-    cross_entropy_loss = tf.reduce_mean(cross_entropy, name='cross_entropy_loss')
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, name='optimizer')
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=tf.stop_gradient(correct_label), name='cross_entropy')
+    cross_entropy_loss = tf.reduce_mean(input_tensor=cross_entropy, name='cross_entropy_loss')
+    optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate, name='optimizer')
     train_op = optimizer.minimize(cross_entropy_loss, name='train_op')
 
     return (logits, train_op, cross_entropy_loss)
@@ -265,7 +283,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
 
         elapsed_time = str(datetime.timedelta(seconds=(time.time() - start_time)))
         print("")
-        print("Epoch:", epoch, "Loss/batch:", total_loss / batches_run, "time so far:", elapsed_time, end='', flush=True)
+        print("Epoch:", epoch, "Loss/batch:", total_loss / batches_run, "time so far:", elapsed_time)
 
     print("")
 
@@ -278,15 +296,17 @@ def run():
     # CW: originals are 1242x375 so we are using shrunk and somewhat squashed versions
     # (more extreme letterbox aspect ratio than originals). Shrinking will reduce training
     #  workload.
-    image_shape = (160, 576)
+    image_shape = (576, 160)  # width, height to fit Pillow.Image (prev scipy.image usage transposed)
 
     data_dir = './data'
     runs_dir = './runs'
     tests.test_for_kitti_dataset(data_dir)
 
+    quick_run_test = False # For debug
+
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
-    epochs = 50 # Model pretty much converged after this time and no apparent overtraining
-    batch_size = 6 # Fits my Quadro P3000 device without memory allocation warning
+    epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
+    batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
     # Other hyperparameters in train_nn(); would have put them here but went with template calling structure
 
     # Download pretrained vgg model
@@ -296,12 +316,12 @@ def run():
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # Path to vgg model
         vgg_path = os.path.join(data_dir, 'vgg')
 
         # Create function to get batches
-        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
+        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape, quick_run_test)
 
         # OPTIONAL: Augment Images for better results
         #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
@@ -322,10 +342,10 @@ def run():
         # CW: for debug, want to visualise model structure in Tensorboard; initially did this
         # before adding my layers to understand how to connect to unmodified VGG layers. Now
         # doing afterwards to include picture in write-up that includes my layers.
-        if True:  # Turned off for most runs when not debugging
-            print(tf.trainable_variables()) # also trying to understand what we've got
+        if False:  # Turned off for most runs when not debugging
+            print(tf.compat.v1.trainable_variables()) # also trying to understand what we've got
             log_path = os.path.join(vgg_path, 'logs')
-            writer = tf.summary.FileWriter(log_path, graph=sess.graph)
+            writer = tf.compat.v1.summary.FileWriter(log_path, graph=sess.graph)
             # Then visualise as follows:
             # >tensorboard --logdir=C:\Users\UK000044\git\CarND-Semantic-Segmentation\data\vgg\logs --host localhost
             # Open http://localhost:6006 in browser (if don't specify --host, in Windows 10 uses PC name, and 
@@ -334,17 +354,18 @@ def run():
         # CW: add operations to classify each pixel by class and assess performance
         # Input label size dynamic because have odd number of images as last batch; can get away without specifying 
         # shape in such detail (e.g. [None,None,None,num_classes] but specifying those we know to hopefully make bugs more apparent
-        correct_label = tf.placeholder(tf.float32, shape=[None,image_shape[0],image_shape[1],num_classes], name='correct_label')
+        # Note: image shape transposed using Pillow Image.open and Numpy conversion compared with original scipy function
+        correct_label = tf.compat.v1.placeholder(tf.float32, shape=[None,image_shape[1],image_shape[0],num_classes], name='correct_label')
 
         # Reshape labels as one-hot matrix spanning all of the pixels from all of the images concatenated together
         flattened_label = tf.reshape(correct_label, (-1, num_classes), name='flattened_label')
 
-        learning_rate = tf.placeholder(tf.float32, shape=(), name='learning_rate')
+        learning_rate = tf.compat.v1.placeholder(tf.float32, shape=(), name='learning_rate')
 
         logits, train_op, cross_entropy_loss = optimize(layer_output, correct_label, learning_rate, num_classes)
 
         # CW: have to initialise variables at some point
-        init_op = tf.global_variables_initializer()
+        init_op = tf.compat.v1.global_variables_initializer()
         sess.run(init_op)
 
         # DONE: Train NN using the train_nn function
@@ -352,7 +373,7 @@ def run():
                  flattened_label, keep_prob, learning_rate)
 
         # DONE: Save inference data using helper.save_inference_samples
-        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image, quick_run_test)
 
         # OPTIONAL: Apply the trained model to a video
 
