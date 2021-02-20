@@ -103,7 +103,7 @@ def gen_batch_function(data_folder, image_shape, quick_run_test):
 
                 unscaled_image = Image.open(image_file)       # real photo
                 image = np.array(unscaled_image.resize(image_shape))
-                unscaled_gt_image = Image.open(image_file)       # ground truth image
+                unscaled_gt_image = Image.open(gt_image_file)       # ground truth image
                 gt_image = np.array(unscaled_gt_image.resize(image_shape))
 
                 gt_bg = np.all(gt_image == background_color, axis=2) # CW: for each pixel, is it background (red)?
