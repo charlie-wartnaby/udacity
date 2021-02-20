@@ -302,7 +302,7 @@ def run():
     runs_dir = './runs'
     tests.test_for_kitti_dataset(data_dir)
 
-    quick_run_test = False # For debug
+    quick_run_test = True # For debug
 
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
@@ -373,7 +373,7 @@ def run():
                  flattened_label, keep_prob, learning_rate)
 
         # DONE: Save inference data using helper.save_inference_samples
-        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image, quick_run_test)
 
         # OPTIONAL: Apply the trained model to a video
 

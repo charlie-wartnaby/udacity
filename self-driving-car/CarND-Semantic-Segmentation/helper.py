@@ -146,9 +146,9 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
         im_softmax = sess.run(
             [tf.nn.softmax(logits)],
             {keep_prob: 1.0, image_pl: [image]})
-        im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
-        segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
-        mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
+        im_softmax = im_softmax[0][:, 1].reshape(image_shape[1], image_shape[0])
+        segmentation = (im_softmax > 0.5).reshape(image_shape[1], image_shape[0], 1)
+        mask = np.dot(segmentation, np.array([[0, 255, 0, 127]], dtype=np.uint8))
         mask = Image.fromarray(mask, mode="RGBA")
         street_im = Image.fromarray(image)
         street_im.paste(mask, box=None, mask=mask)
@@ -156,7 +156,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
         yield os.path.basename(image_file), street_im
 
 
-def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image):
+def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image, quick_run_test):
     # Make folder for current run
     output_dir = os.path.join(runs_dir, str(time.time()))
     if os.path.exists(output_dir):
@@ -167,5 +167,9 @@ def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_p
     print('Training Finished. Saving test images to: {}'.format(output_dir))
     image_outputs = gen_test_output(
         sess, logits, keep_prob, input_image, os.path.join(data_dir, 'data_road/testing'), image_shape)
+    count = 0
     for name, image in image_outputs:
         image.save(os.path.join(output_dir, name))
+        count += 1
+        if quick_run_test and count >= 5:
+            break
