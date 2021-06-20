@@ -63,10 +63,12 @@ def load_vgg(sess, vgg_path):
     
  
     # Loading using v2 to see if works
-    new_model = tf.keras.models.load_model(vgg_path)
+    keras_loaded_model = tf.keras.models.load_model(vgg_path) # I'm sure model.summary() worked initially after this, but now get exception AutoTrackable object has no attribute summary
+    tf_loaded_model = tf.saved_model.load(vgg_path) # Seem to get identical AutoTrackable object with this call
+    library_model = tf.keras.applications.VGG16() # But this gives tensorflow.python.keras.engine.functional.Functional object fetched from https://storage.googleapis.com/tensorflow/keras-applications/vgg16/vgg16_weights_tf_dim_ordering_tf_kernels.h5
     # Check its architecture
     # TODO I thought this worked previously but now get exception AutoTrackable object has no attrib summary
-    #new_model.summary()
+    library_model.summary()
 
     # Back to original
     # Following walkthrough tips
