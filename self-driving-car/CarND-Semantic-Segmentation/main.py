@@ -51,36 +51,68 @@ def load_vgg(sess, vgg_path):
     :param sess: TensorFlow Session
     :param vgg_path: Path to vgg folder, containing "variables/" and "saved_model.pb"
     :return: Tuple of Tensors from VGG model (image_input, keep_prob, layer3_out, layer4_out, layer7_out)
-    """
-    # DONE: Implement function
-    #   Use tf.saved_model.loader.load to load the model and weights
+
+https://github.com/Natsu6767/VGG16-Tensorflow/blob/master/vgg16.py shows KEEP_PROB dropout layer after fc1 and fc2
+
+The Keras standard VGG16 doesn't have the dropout layers used by this project in the original
+model provided. But see here for how to insert them:
+https://stackoverflow.com/questions/42475381/add-dropout-layers-between-pretrained-dense-layers-in-keras
+
+Output from model.summary() for tf.keras.applications.VGG16() to figure out new layer names:
+ Layer (type)                 Output Shape              Param #
+=================================================================
+input_1 (InputLayer)         [(None, 224, 224, 3)]     0        'input_1:0' # Walkthrough: so we can pass through image
+block1_conv1 (Conv2D)        (None, 224, 224, 64)      1792
+block1_conv2 (Conv2D)        (None, 224, 224, 64)      36928
+block1_pool (MaxPooling2D)   (None, 112, 112, 64)      0
+block2_conv1 (Conv2D)        (None, 112, 112, 128)     73856     
+block2_conv2 (Conv2D)        (None, 112, 112, 128)     147584
+block2_pool (MaxPooling2D)   (None, 56, 56, 128)       0
+block3_conv1 (Conv2D)        (None, 56, 56, 256)       295168
+block3_conv2 (Conv2D)        (None, 56, 56, 256)       590080
+block3_conv3 (Conv2D)        (None, 56, 56, 256)       590080
+block3_pool (MaxPooling2D)   (None, 28, 28, 256)       0         'layer3_out:0'  # Walkthrough: pool3 layer as shown in paper architecture
+block4_conv1 (Conv2D)        (None, 28, 28, 512)       1180160
+block4_conv2 (Conv2D)        (None, 28, 28, 512)       2359808
+block4_conv3 (Conv2D)        (None, 28, 28, 512)       2359808
+block4_pool (MaxPooling2D)   (None, 14, 14, 512)       0         'layer4_out:0'  # Walkthrough: pool4 layer
+block5_conv1 (Conv2D)        (None, 14, 14, 512)       2359808
+block5_conv2 (Conv2D)        (None, 14, 14, 512)       2359808
+block5_conv3 (Conv2D)        (None, 14, 14, 512)       2359808
+block5_pool (MaxPooling2D)   (None, 7, 7, 512)         0          'layer7_out:0'  # Walkthrough: pool5 layer
+flatten (Flatten)            (None, 25088)             0
+fc1 (Dense)                  (None, 4096)              102764544  Note: no dropout layer in this library version
+fc2 (Dense)                  (None, 4096)              16781312  
+predictions (Dense)          (None, 1000)              4097000
+ """
     vgg_tag = 'vgg16'
-    vgg_input_tensor_name      = 'image_input:0' # Walkthrough: so we can pass through image
+    vgg_input_tensor_name      = 'input_1:0' # Walkthrough: so we can pass through image
     vgg_keep_prob_tensor_name  = 'keep_prob:0'   # Walkthrough: so we can adjust fraction of data retained to avoid overfitting, though weights not frozen (says are in walkthrough but note corrects that)
     vgg_layer3_out_tensor_name = 'layer3_out:0'  # Walkthrough: pool3 layer as shown in paper architecture
     vgg_layer4_out_tensor_name = 'layer4_out:0'  # Walkthrough: pool4 layer
     vgg_layer7_out_tensor_name = 'layer7_out:0'  # Walkthrough: pool5 layer
     
  
-    # Loading using v2 to see if works
-    keras_loaded_model = tf.keras.models.load_model(vgg_path) # I'm sure model.summary() worked initially after this, but now get exception AutoTrackable object has no attribute summary
-    tf_loaded_model = tf.saved_model.load(vgg_path) # Seem to get identical AutoTrackable object with this call
+    # Loading originally provided model for this project doesn't work; get AutoTrackable object without
+    # the same interface as tensorflow.python.keras.engine.functional.Functional object got from library:
+    #keras_loaded_model = tf.keras.models.load_model(vgg_path) # I'm sure model.summary() worked initially after this, but now get exception AutoTrackable object has no attribute summary
+    #tf_loaded_model = tf.saved_model.load(vgg_path) # Seem to get identical AutoTrackable object with this call
+
     library_model = tf.keras.applications.VGG16() # But this gives tensorflow.python.keras.engine.functional.Functional object fetched from https://storage.googleapis.com/tensorflow/keras-applications/vgg16/vgg16_weights_tf_dim_ordering_tf_kernels.h5
-    # Check its architecture
-    # TODO I thought this worked previously but now get exception AutoTrackable object has no attrib summary
-    library_model.summary()
+    # Display its architecture
+    library_model.summary() # works with Functional object but not AutoTrackable
 
-    # Back to original
+    # Original tf v1
     # Following walkthrough tips
-    tf.compat.v1.saved_model.loader.load(sess, [vgg_tag], vgg_path)
+    #tf.compat.v1.saved_model.loader.load(sess, [vgg_tag], vgg_path)
+    #graph = tf.compat.v1.get_default_graph()
 
-    graph = tf.compat.v1.get_default_graph()
-
-    image_input = graph.get_tensor_by_name(vgg_input_tensor_name)
-    keep_prob   = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
-    layer3_out  = graph.get_tensor_by_name(vgg_layer3_out_tensor_name)
-    layer4_out  = graph.get_tensor_by_name(vgg_layer4_out_tensor_name)
-    layer7_out  = graph.get_tensor_by_name(vgg_layer7_out_tensor_name)
+    # Fetch tensors for input and output by name https://stackoverflow.com/questions/41711190/keras-how-to-get-the-output-of-each-layer
+    image_input = library_model.get_layer('input_1').input
+    # keep_prob   = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
+    layer3_out  = library_model.get_layer('block3_pool').output
+    layer4_out  = library_model.get_layer('block4_pool').output
+    layer7_out  = library_model.get_layer('block5_pool').output
 
     return (image_input, keep_prob, layer3_out, layer4_out, layer7_out)
 
