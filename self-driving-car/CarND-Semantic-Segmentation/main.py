@@ -55,12 +55,11 @@ def load_vgg(sess, vgg_path):
 https://github.com/Natsu6767/VGG16-Tensorflow/blob/master/vgg16.py shows KEEP_PROB dropout layer after fc1 and fc2
 
 The Keras standard VGG16 doesn't have the dropout layers used by this project in the original
-model provided. But see here for how to insert them:
-https://stackoverflow.com/questions/42475381/add-dropout-layers-between-pretrained-dense-layers-in-keras
+model provided. But see below for their insertion.
 
 Output from model.summary() for tf.keras.applications.VGG16() to figure out new layer names:
- Layer (type)                 Output Shape              Param #
-=================================================================
+ Layer (type)                 Output Shape              Param #     Old project name/comments
+=================================================================--===========================================================
 input_1 (InputLayer)         [(None, 224, 224, 3)]     0        'input_1:0' # Walkthrough: so we can pass through image
 block1_conv1 (Conv2D)        (None, 224, 224, 64)      1792
 block1_conv2 (Conv2D)        (None, 224, 224, 64)      36928
@@ -85,19 +84,14 @@ fc1 (Dense)                  (None, 4096)              102764544  Note: no dropo
 fc2 (Dense)                  (None, 4096)              16781312  
 predictions (Dense)          (None, 1000)              4097000
  """
-    vgg_tag = 'vgg16'
-    vgg_input_tensor_name      = 'input_1:0' # Walkthrough: so we can pass through image
-    vgg_keep_prob_tensor_name  = 'keep_prob:0'   # Walkthrough: so we can adjust fraction of data retained to avoid overfitting, though weights not frozen (says are in walkthrough but note corrects that)
-    vgg_layer3_out_tensor_name = 'layer3_out:0'  # Walkthrough: pool3 layer as shown in paper architecture
-    vgg_layer4_out_tensor_name = 'layer4_out:0'  # Walkthrough: pool4 layer
-    vgg_layer7_out_tensor_name = 'layer7_out:0'  # Walkthrough: pool5 layer
-    
+    vgg_tag = 'vgg16'    
  
     # Loading originally provided model for this project doesn't work; get AutoTrackable object without
     # the same interface as tensorflow.python.keras.engine.functional.Functional object got from library:
     #keras_loaded_model = tf.keras.models.load_model(vgg_path) # I'm sure model.summary() worked initially after this, but now get exception AutoTrackable object has no attribute summary
     #tf_loaded_model = tf.saved_model.load(vgg_path) # Seem to get identical AutoTrackable object with this call
 
+    # TODO different sets of weights available for this...
     library_model = tf.keras.applications.VGG16() # But this gives tensorflow.python.keras.engine.functional.Functional object fetched from https://storage.googleapis.com/tensorflow/keras-applications/vgg16/vgg16_weights_tf_dim_ordering_tf_kernels.h5
     # Display its architecture
     library_model.summary() # works with Functional object but not AutoTrackable
@@ -107,12 +101,31 @@ predictions (Dense)          (None, 1000)              4097000
     #tf.compat.v1.saved_model.loader.load(sess, [vgg_tag], vgg_path)
     #graph = tf.compat.v1.get_default_graph()
 
+    # https://stackoverflow.com/questions/42475381/add-dropout-layers-between-pretrained-dense-layers-in-keras
+    # Store the fully connected layers
+    fc1         = library_model.get_layer("fc1")
+    fc2         = library_model.get_layer("fc2")
+    predictions = library_model.get_layer("predictions")
+    # Create the dropout layers
+    dropout1 = tf.keras.layers.Dropout(0.85, name="dropout1")
+    dropout2 = tf.keras.layers.Dropout(0.85, name="dropout2")
+    # Reconnect the layers
+    x = dropout1(fc1.output)
+    x = fc2(x)
+    x = dropout2(x)
+    predictors = predictions(x)
+    # Create a new model
+    mod_model = tf.keras.Model(inputs=library_model.input, outputs=predictors)
+
+    # Display its architecture
+    mod_model.summary()
+
     # Fetch tensors for input and output by name https://stackoverflow.com/questions/41711190/keras-how-to-get-the-output-of-each-layer
-    image_input = library_model.get_layer('input_1').input
-    # keep_prob   = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
-    layer3_out  = library_model.get_layer('block3_pool').output
-    layer4_out  = library_model.get_layer('block4_pool').output
-    layer7_out  = library_model.get_layer('block5_pool').output
+    image_input = mod_model.get_layer('input_1').input
+    keep_prob   = mod_model.get_layer('dropout1').output
+    layer3_out  = mod_model.get_layer('block3_pool').output
+    layer4_out  = mod_model.get_layer('block4_pool').output
+    layer7_out  = mod_model.get_layer('block5_pool').output
 
     return (image_input, keep_prob, layer3_out, layer4_out, layer7_out)
 
