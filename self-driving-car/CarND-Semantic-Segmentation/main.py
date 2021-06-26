@@ -93,7 +93,8 @@ predictions (Dense)          (None, 1000)              4097000
 
     # TODO different sets of weights available for this...
     library_model = tf.keras.applications.VGG16() # But this gives tensorflow.python.keras.engine.functional.Functional object fetched from https://storage.googleapis.com/tensorflow/keras-applications/vgg16/vgg16_weights_tf_dim_ordering_tf_kernels.h5
-    # Display its architecture
+    # Note: that gets cached in <user>\.keras\models
+    print("VGG model as initially loaded:")
     library_model.summary() # works with Functional object but not AutoTrackable
 
     # Original tf v1
@@ -118,22 +119,16 @@ predictions (Dense)          (None, 1000)              4097000
     mod_model = tf.keras.Model(inputs=library_model.input, outputs=predictors)
 
     # Display its architecture
+    print("VGG model after inserting dropout layers:")
     mod_model.summary()
 
-    # Fetch tensors for input and output by name https://stackoverflow.com/questions/41711190/keras-how-to-get-the-output-of-each-layer
-    image_input = mod_model.get_layer('input_1').input
-    keep_prob   = mod_model.get_layer('dropout1').output
-    layer3_out  = mod_model.get_layer('block3_pool').output
-    layer4_out  = mod_model.get_layer('block4_pool').output
-    layer7_out  = mod_model.get_layer('block5_pool').output
-
-    return (image_input, keep_prob, layer3_out, layer4_out, layer7_out)
+    return mod_model
 
 # Not yet updated for v2 changes:
 #tests.test_load_vgg(load_vgg, tf)
 
 
-def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
+def add_layers(model, num_classes):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
     :param vgg_layer3_out: TF Tensor for VGG Layer 3 output
@@ -191,67 +186,115 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # fc7         conv2d 1x1x4096x4096, Relu  5x18x4096
     # dropout_1   dropout(keep_prob)          5x18x4096     --> layer7_out
 
+    layer3_out  = model.get_layer('block3_pool').output
+    layer4_out  = model.get_layer('block4_pool').output
+    layer7_out  = model.get_layer('block5_pool').output
 
     # Upsample by 2. We need to work our way down from a kernel depth of 4096
     # to just our number of classes (i.e. 2). Should we do this all in one go?
     # Or keep more depth in as we work upwards? For now doing it all in one hit.
-    layer8 = tf.compat.v1.layers.conv2d_transpose(vgg_layer7_out,
-                                        num_classes, # so going down from 4096 to 2, is this a good idea yet?!
-                                        4, # kernel size taken from classroom example, might experiment
-                                        2, # stride causes upsampling
-                                        padding='same',
-                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-                                        name='layer8')
+    layer8 = tf.keras.layers.Conv2DTranspose(num_classes, #filters, 
+                                             4, # kernel size taken from classroom example, might experiment
+                                             strides=(2,2), # stride causes upsampling
+                                             padding='same',
+                                             kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+                                             name='layer8')
+                   # tf.compat.v1.layers.conv2d_transpose(vgg_layer7_out, #inputs
+                   #                     num_classes, # filters so going down from 4096 to 2, is this a good idea yet?!
+                   #                     4, # kernel size taken from classroom example, might experiment
+                   #                     2, # stride causes upsampling
+                   #                     padding='same',
+                   #                     kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+                   #                     name='layer8')
+
+    
 
     # Now we're at 10x36x2 so we have same pixel resolution as layer4_out. Can't directly add
     # in layer4_out because it has filter depth of 512. (Though we could have had our transpose
     # convolution only downsample to 512 for compatibility... might try that later)
 
     # Squash layer4 output with 1x1 convolution so that it has compatible filter depth (i.e. num_classes)
-    layer4_squashed = tf.compat.v1.layers.conv2d(vgg_layer4_out,
-                                       num_classes, # new number of filters
-                                       1,    # 1x1 convolution so kernel size 1
-                                       padding='same',
-                                       kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-                                       name='layer4_squashed')
+    layer4_squashed = tf.keras.layers.Conv2D(num_classes, # new number of filters,
+                                             1,    # 1x1 convolution so kernel size 1
+                                             padding='same',
+                                             kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+                                             name='layer4_squashed')
+    #layer4_squashed = tf.compat.v1.layers.conv2d(vgg_layer4_out,
+    #                                   num_classes, # new number of filters
+    #                                   1,    # 1x1 convolution so kernel size 1
+    #                                   padding='same',
+    #                                   kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+    #                                   name='layer4_squashed')
 
     # now we can add skip layer of this dimension taken from corresponding encoder layer
-    layer8_plus_layer4 = tf.add(layer8, layer4_squashed, name='layer8_plus_layer4')
+    layer8_plus_layer4 = tf.keras.layers.add(layer8, layer4_squashed, name='layer8_plus_layer4')
+    #layer8_plus_layer4 = tf.add(layer8, layer4_squashed, name='layer8_plus_layer4')
 
     # upsample by 2
-    layer9 = tf.compat.v1.layers.conv2d_transpose(layer8_plus_layer4,
-                                        num_classes,
-                                        4, # kernel size taken from classroom example, might experiment
-                                        2, # stride causes upsampling
-                                        padding='same',
-                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-                                        name='layer9')
+    layer9 = tf.keras.layers.Conv2DTranspose(num_classes, # filters
+                                             4, # kernel size taken from classroom example
+                                             strides=(2,2), # stride causes upsampling
+                                             padding='same',
+                                             kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+                                             name='layer9')
+    #layer9 = tf.compat.v1.layers.conv2d_transpose(layer8_plus_layer4,
+    #                                    num_classes,
+    #                                    4, # kernel size taken from classroom example, might experiment
+    #                                    2, # stride causes upsampling
+    #                                    padding='same',
+    #                                    kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+    #                                    name='layer9')
 
     # Now we're at 20x72x2 so same pixel resolution as layer3_out, but need to squash that from
     # 256 filters to 2 (num_classes) before we can add it in as skip connection
-    layer3_squashed = tf.compat.v1.layers.conv2d(vgg_layer3_out,
-                                       num_classes, # new number of filters
-                                       1,    # 1x1 convolution so kernel size 1
-                                       padding='same',
-                                       kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-                                       name='layer3_squashed')
+    layer3_squashed = tf.keras.layers.Conv2D(num_classes, # new number of filters
+                                             1,    # 1x1 convolution so kernel size 1
+                                             padding='same',
+                                             kernel_regularizer = tf.keras.regularizers
+                                             name='layer3_squashed')
+   #layer3_squashed = tf.compat.v1.layers.conv2d(vgg_layer3_out,
+    #                                   num_classes, # new number of filters
+    #                                   1,    # 1x1 convolution so kernel size 1
+    #                                   padding='same',
+    #                                   kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+    #                                   name='layer3_squashed')
 
     # now we can add skip layer of this dimension taken from corresponding encoder layer
-    layer9_plus_layer3 = tf.add(layer9, layer3_squashed, name='layer9_plus_layer3')
+    layer9_plus_layer3 = tf.keras.layers.add(layer9, layer3_squashed, name='layer9_plus_layer3')
+    #layer9_plus_layer3 = tf.add(layer9, layer3_squashed, name='layer9_plus_layer3')
 
     # upsample by 8 to get back to original image size
-    layer10 = tf.compat.v1.layers.conv2d_transpose(layer9_plus_layer3,
-                                        num_classes,
-                                        32, # Finding quite large kernel works nicely
-                                        8, # stride causes upsampling
-                                        padding='same',
-                                        kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-                                        name='layer10')
+    layer10 = tf.keras.layers.Conv2DTranspose(num_classes,
+                                              32, # Finding quite large kernel works nicely
+                                              strides=(8,8), # stride causes upsampling
+                                              padding='same',
+                                              kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+                                              name='layer10')
+    #layer10 = tf.compat.v1.layers.conv2d_transpose(layer9_plus_layer3,
+    #                                    num_classes,
+    #                                    32, # Finding quite large kernel works nicely
+    #                                    8, # stride causes upsampling
+    #                                    padding='same',
+    #                                    kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
+    #                                    name='layer10')
+
     # so now we should be at 160x576x2, same as original image size, 2 classes
 
-    return layer10 # should be same size as image
+    # Connect the layers
+    x = layer8(layer7_out)
 
-tests.test_layers(layers)
+    x = fc2(x)
+    x = dropout2(x)
+    predictors = layer10(x)  # layer 10 should be same size as image
+
+    # Create a new model
+    mod_model = tf.keras.Model(inputs=library_model.input, outputs=predictors)
+    print("Model after adding decoder layers:")
+    mod_model.summary()
+    
+    return mod_model
+
+tests.test_layers(add_layers)
 
 
 def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
@@ -365,16 +408,21 @@ def run():
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
     # Other hyperparameters in train_nn(); would have put them here but went with template calling structure
 
-    # Download pretrained vgg model
-    helper.maybe_download_pretrained_vgg(data_dir)
+    # Load pretrained VGG16 including dropout layers not included in standard Keras version
+    model = load_vgg(sess, vgg_path)
+
+    # Fetch tensors for input and output by name https://stackoverflow.com/questions/41711190/keras-how-to-get-the-output-of-each-layer
+    image_input = model.get_layer('input_1').input
+    keep_prob   = model.get_layer('dropout1').output
+
+    # CW: add our own layers to do transpose convolution skip connections from encoder
+    mmodel = add_layers(model, num_classes) # get final layer out
 
     # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
     with tf.compat.v1.Session() as sess:
-        # Path to vgg model
-        vgg_path = os.path.join(data_dir, 'vgg')
 
         # Create function to get batches
         get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape, quick_run_test)
@@ -385,15 +433,6 @@ def run():
         # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
         # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot
         #     with [0]=1 for background and [1]=1 for (any) road
-
-        # DONE: Build NN using load_vgg, layers, and optimize function
-
-        # CW: load VGG16 (actually already modified version for FCN) and pick out tensors corresponding
-        #     to layers we want to attach to
-        input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path)
-
-        # CW: add our own layers to do transpose convolution skip connections from encoder
-        layer_output = layers(layer3_out, layer4_out, layer7_out, num_classes) # get final layer out
 
         # CW: for debug, want to visualise model structure in Tensorboard; initially did this
         # before adding my layers to understand how to connect to unmodified VGG layers. Now
