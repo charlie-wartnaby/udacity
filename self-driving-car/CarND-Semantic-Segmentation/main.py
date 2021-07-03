@@ -45,7 +45,7 @@ config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
 
-def load_vgg(sess, vgg_path):
+def load_vgg():
     """
     Load Pretrained VGG Model into TensorFlow.
     :param sess: TensorFlow Session
@@ -185,6 +185,7 @@ def add_layers(model, num_classes):
     # dropout     dropout(keep_prob)          5x18x4096
     # fc7         conv2d 1x1x4096x4096, Relu  5x18x4096
     # dropout_1   dropout(keep_prob)          5x18x4096     --> layer7_out
+    # layer8      conv2d_t                    10x36
 
     layer3_out  = model.get_layer('block3_pool').output
     layer4_out  = model.get_layer('block4_pool').output
@@ -226,10 +227,6 @@ def add_layers(model, num_classes):
     #                                   kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
     #                                   name='layer4_squashed')
 
-    # now we can add skip layer of this dimension taken from corresponding encoder layer
-    layer8_plus_layer4 = tf.keras.layers.add(layer8, layer4_squashed, name='layer8_plus_layer4')
-    #layer8_plus_layer4 = tf.add(layer8, layer4_squashed, name='layer8_plus_layer4')
-
     # upsample by 2
     layer9 = tf.keras.layers.Conv2DTranspose(num_classes, # filters
                                              4, # kernel size taken from classroom example
@@ -250,7 +247,7 @@ def add_layers(model, num_classes):
     layer3_squashed = tf.keras.layers.Conv2D(num_classes, # new number of filters
                                              1,    # 1x1 convolution so kernel size 1
                                              padding='same',
-                                             kernel_regularizer = tf.keras.regularizers
+                                             kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                              name='layer3_squashed')
    #layer3_squashed = tf.compat.v1.layers.conv2d(vgg_layer3_out,
     #                                   num_classes, # new number of filters
@@ -259,9 +256,6 @@ def add_layers(model, num_classes):
     #                                   kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
     #                                   name='layer3_squashed')
 
-    # now we can add skip layer of this dimension taken from corresponding encoder layer
-    layer9_plus_layer3 = tf.keras.layers.add(layer9, layer3_squashed, name='layer9_plus_layer3')
-    #layer9_plus_layer3 = tf.add(layer9, layer3_squashed, name='layer9_plus_layer3')
 
     # upsample by 8 to get back to original image size
     layer10 = tf.keras.layers.Conv2DTranspose(num_classes,
@@ -281,20 +275,31 @@ def add_layers(model, num_classes):
     # so now we should be at 160x576x2, same as original image size, 2 classes
 
     # Connect the layers
-    x = layer8(layer7_out)
+    x1 = layer8(layer7_out)
+    x2 = layer4_squashed(layer4_out)
 
-    x = fc2(x)
-    x = dropout2(x)
-    predictors = layer10(x)  # layer 10 should be same size as image
+    # now we can add skip layer of this dimension taken from corresponding encoder layer
+    layer8_plus_layer4 = tf.keras.layers.add([x1, x2], name='layer8_plus_layer4')
+    #layer8_plus_layer4 = tf.add(layer8, layer4_squashed, name='layer8_plus_layer4')
+
+    x1 = layer9(layer8_plus_layer4)
+    x2 = layer3_squashed(layer3_out)
+
+    # now we can add skip layer of this dimension taken from corresponding encoder layer
+    layer9_plus_layer3 = tf.keras.layers.add([x1, x2], name='layer9_plus_layer3')
+    #layer9_plus_layer3 = tf.add(layer9, layer3_squashed, name='layer9_plus_layer3')
+
+    predictors = layer10(layer9_plus_layer3)  # layer 10 should be same size as image
 
     # Create a new model
-    mod_model = tf.keras.Model(inputs=library_model.input, outputs=predictors)
+    mod_model = tf.keras.Model(inputs=model.input, outputs=predictors)
     print("Model after adding decoder layers:")
     mod_model.summary()
-    
+
     return mod_model
 
-tests.test_layers(add_layers)
+# Not updated for v2 yet:
+#tests.test_layers(add_layers)
 
 
 def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
@@ -409,7 +414,7 @@ def run():
     # Other hyperparameters in train_nn(); would have put them here but went with template calling structure
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
-    model = load_vgg(sess, vgg_path)
+    model = load_vgg()
 
     # Fetch tensors for input and output by name https://stackoverflow.com/questions/41711190/keras-how-to-get-the-output-of-each-layer
     image_input = model.get_layer('input_1').input
