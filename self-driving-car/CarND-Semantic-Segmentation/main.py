@@ -197,7 +197,7 @@ def add_layers(model, num_classes):
     # Or keep more depth in as we work upwards? For now doing it all in one hit.
     layer8 = tf.keras.layers.Conv2DTranspose(num_classes, #filters, 
                                              4, # kernel size taken from classroom example, might experiment
-                                             strides=(2,2), # stride causes upsampling
+                                             strides=2, # stride causes upsampling
                                              padding='same',
                                              kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                              name='layer8')
@@ -409,7 +409,7 @@ def run():
     # CW: originals are 1242x375 so we are using shrunk and somewhat squashed versions
     # (more extreme letterbox aspect ratio than originals). Shrinking will reduce training
     #  workload.
-    image_shape = (576, 160)  # width, height to fit Pillow.Image (prev scipy.image usage transposed)
+    image_shape = (224,224) # Updated for keras library VGG16 (576, 160)  # width, height to fit Pillow.Image (prev scipy.image usage transposed)
 
     data_dir = './data'
     runs_dir = './runs'
