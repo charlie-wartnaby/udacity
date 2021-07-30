@@ -9,6 +9,7 @@
 import os.path
 import tensorflow as tf
 import helper
+import numpy as np
 import time
 import datetime
 import warnings
@@ -341,6 +342,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param epochs: Number of epochs
     :param batch_size: Batch size
     :param get_batches_fn: Function to get batches of training data.  Call using get_batches_fn(batch_size)
+    
     :param train_op: TF Operation to train the neural network
     :param cross_entropy_loss: TF Tensor for the amount of loss
     :param input_image: TF Placeholder for input images
@@ -393,6 +395,13 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
 
 tests.test_train_nn(train_nn)
 
+def fake_generator():
+    inputs = [0 * 10]
+    targets = [1 * 10]
+    X = np.array(inputs, dtype='float32')
+    y = np.array(targets, dtype='float32')
+    while True:
+        yield (X, y)
  
 def run():
     num_classes = 2 #  CW: just road or 'other'
@@ -421,61 +430,46 @@ def run():
     keep_prob   = model.get_layer('dropout1').output
 
     # CW: add our own layers to do transpose convolution skip connections from encoder
-    mmodel = add_layers(model, num_classes) # get final layer out
+    model = add_layers(model, num_classes) # get final layer out
+
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
-    with tf.compat.v1.Session() as sess:
+    # Create function to get batches
+    #get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape, num_classes, quick_run_test)
 
-        # Create function to get batches
-        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape, quick_run_test)
+    # OPTIONAL: Augment Images for better results
+    #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
 
-        # OPTIONAL: Augment Images for better results
-        #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
+    # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
+    # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot
+    #     with [0]=1 for background and [1]=1 for (any) road
 
-        # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
-        # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot
-        #     with [0]=1 for background and [1]=1 for (any) road
+    data_path = os.path.join(data_dir, 'data_road/training')
+    num_images, image_paths = helper.get_image_paths(data_path, quick_run_test)
+    model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
+              batch_size=batch_size,
+              steps_per_epoch = num_images / batch_size)
 
-        # CW: for debug, want to visualise model structure in Tensorboard; initially did this
-        # before adding my layers to understand how to connect to unmodified VGG layers. Now
-        # doing afterwards to include picture in write-up that includes my layers.
-        if False:  # Turned off for most runs when not debugging
-            print(tf.compat.v1.trainable_variables()) # also trying to understand what we've got
-            log_path = os.path.join(vgg_path, 'logs')
-            writer = tf.compat.v1.summary.FileWriter(log_path, graph=sess.graph)
-            # Then visualise as follows:
-            # >tensorboard --logdir=C:\Users\UK000044\git\CarND-Semantic-Segmentation\data\vgg\logs --host localhost
-            # Open http://localhost:6006 in browser (if don't specify --host, in Windows 10 uses PC name, and 
-            #                         localhost or 127.0.0.1 find no server, whereas http://pc_name:6006 does work)
+    # CW: add operations to classify each pixel by class and assess performance
+    # Input label size dynamic because have odd number of images as last batch; can get away without specifying 
+    # shape in such detail (e.g. [None,None,None,num_classes] but specifying those we know to hopefully make bugs more apparent
+    # Note: image shape transposed using Pillow Image.open and Numpy conversion compared with original scipy function
+    correct_label = tf.compat.v1.placeholder(tf.float32, shape=[None,image_shape[1],image_shape[0],num_classes], name='correct_label')
 
-        # CW: add operations to classify each pixel by class and assess performance
-        # Input label size dynamic because have odd number of images as last batch; can get away without specifying 
-        # shape in such detail (e.g. [None,None,None,num_classes] but specifying those we know to hopefully make bugs more apparent
-        # Note: image shape transposed using Pillow Image.open and Numpy conversion compared with original scipy function
-        correct_label = tf.compat.v1.placeholder(tf.float32, shape=[None,image_shape[1],image_shape[0],num_classes], name='correct_label')
+    # Reshape labels as one-hot matrix spanning all of the pixels from all of the images concatenated together
+    flattened_label = tf.reshape(correct_label, (-1, num_classes), name='flattened_label')
 
-        # Reshape labels as one-hot matrix spanning all of the pixels from all of the images concatenated together
-        flattened_label = tf.reshape(correct_label, (-1, num_classes), name='flattened_label')
+    learning_rate = tf.compat.v1.placeholder(tf.float32, shape=(), name='learning_rate')
 
-        learning_rate = tf.compat.v1.placeholder(tf.float32, shape=(), name='learning_rate')
+    logits, train_op, cross_entropy_loss = optimize(layer_output, correct_label, learning_rate, num_classes)
 
-        logits, train_op, cross_entropy_loss = optimize(layer_output, correct_label, learning_rate, num_classes)
+    helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image, quick_run_test)
 
-        # CW: have to initialise variables at some point
-        init_op = tf.compat.v1.global_variables_initializer()
-        sess.run(init_op)
-
-        # DONE: Train NN using the train_nn function
-        train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
-                 flattened_label, keep_prob, learning_rate)
-
-        # DONE: Save inference data using helper.save_inference_samples
-        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image, quick_run_test)
-
-        # OPTIONAL: Apply the trained model to a video
+    # OPTIONAL: Apply the trained model to a video
 
 
 if __name__ == '__main__':
