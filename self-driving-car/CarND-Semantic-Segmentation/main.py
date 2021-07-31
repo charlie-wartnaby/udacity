@@ -39,12 +39,6 @@ if not tf.test.gpu_device_name():
 else:
     print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
-from tensorflow.compat.v1 import ConfigProto
-from tensorflow.compat.v1 import InteractiveSession
-
-config = ConfigProto()
-config.gpu_options.allow_growth = True
-session = InteractiveSession(config=config)
 
 def load_vgg():
     """
@@ -303,106 +297,6 @@ def add_layers(model, num_classes):
 #tests.test_layers(add_layers)
 
 
-def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
-    """
-    Build the TensorFLow loss and optimizer operations.
-    :param nn_last_layer: TF Tensor of the last layer in the neural network
-    :param correct_label: TF Placeholder for the correct label image
-    :param learning_rate: TF Placeholder for the learning rate
-    :param num_classes: Number of classes to classify
-    :return: Tuple of (logits, train_op, cross_entropy_loss)
-    """
-    # DONE: Implement function
-
-    # Walkthrough video help from 17:30
-
-    # See also lesson FCN-8 - Classification & Loss
-
-    # have to reshape tensor to 2D to get logits.
-    # Naming tensors to make debug easier if necessary
-    logits = tf.reshape(nn_last_layer, (-1, num_classes), name='logits')
-    
-    # Reshape labels before feeding to TensorFlow session
-
-    # Similar code to traffic sign classifier project now:
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=tf.stop_gradient(correct_label), name='cross_entropy')
-    cross_entropy_loss = tf.reduce_mean(input_tensor=cross_entropy, name='cross_entropy_loss')
-    optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate, name='optimizer')
-    train_op = optimizer.minimize(cross_entropy_loss, name='train_op')
-
-    return (logits, train_op, cross_entropy_loss)
-tests.test_optimize(optimize)
-
-
-def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, image_input,
-             correct_label, keep_prob, learning_rate):
-    """
-    Train neural network and print out the loss during training.
-    :param sess: TF Session
-    :param epochs: Number of epochs
-    :param batch_size: Batch size
-    :param get_batches_fn: Function to get batches of training data.  Call using get_batches_fn(batch_size)
-    
-    :param train_op: TF Operation to train the neural network
-    :param cross_entropy_loss: TF Tensor for the amount of loss
-    :param input_image: TF Placeholder for input images
-    :param correct_label: TF Placeholder for label images
-    :param keep_prob: TF Placeholder for dropout keep probability
-    :param learning_rate: TF Placeholder for learning rate
-    """
-    # DONE: Implement function
-
-    keep_prob_value = 0.5 # After experimentation this high rate eventually does better
-    learning_rate_value = 0.001 # From experiments
-
-    # Walkthrough video help from 19:30
-    start_time = time.time()
-    for epoch in range(epochs):
-        total_loss = 0
-        batches_run = 0
-        for image, label in get_batches_fn(batch_size):
-            # Labels are 4D [N image, height, width, classes]; we just want
-            # to span pixels overall and classes for comparison with the network output
-
-            # A note to self on sizing: Tensorflow does seem to handle the last batch being
-            # smaller in size than the others, and so we can feed less data to a placeholder than
-            # its allocated size, and get a smaller array out. E.g.
-            # image.shape= (12, 160, 576, 3)   for a batch of 12 images x height x width x colour channels
-            # but with 289 samples, the last one is:
-            # image.shape= (1, 160, 576, 3)
-            # and at output, we get corresponding logits_out.shape= (1105920, 2) and logits_out.shape= (92160, 2)
-            # respectively, where 12*160*576=1105920 and 1*160*576=92160.
-
-            # Construct feed dictionary
-            feed_dict = {'image_input:0'   : image,
-                         'correct_label:0' : label,
-                         'keep_prob:0'     : [keep_prob_value],
-                         'learning_rate:0' : learning_rate_value,
-                         };
-
-            # Then actually run optimizer and get loss (OK to do in one step? Seems to work OK.)
-            train_out, loss = sess.run([train_op, cross_entropy_loss], feed_dict=feed_dict)
-
-            batches_run += 1
-            total_loss += loss
-            print('.', end='', flush=True) # Show progress through batches
-
-        elapsed_time = str(datetime.timedelta(seconds=(time.time() - start_time)))
-        print("")
-        print("Epoch:", epoch, "Loss/batch:", total_loss / batches_run, "time so far:", elapsed_time)
-
-    print("")
-
-tests.test_train_nn(train_nn)
-
-def fake_generator():
-    inputs = [0 * 10]
-    targets = [1 * 10]
-    X = np.array(inputs, dtype='float32')
-    y = np.array(targets, dtype='float32')
-    while True:
-        yield (X, y)
- 
 def run():
     num_classes = 2 #  CW: just road or 'other'
 
@@ -452,7 +346,10 @@ def run():
     num_images, image_paths = helper.get_image_paths(data_path, quick_run_test)
     model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
               batch_size=batch_size,
-              steps_per_epoch = num_images / batch_size)
+              steps_per_epoch = num_images / batch_size,
+              epochs=epochs)
+
+    # TODO: how to apply dropout probability and learning rate as before?
 
     helper.save_inference_samples(runs_dir, data_dir, model, image_shape, quick_run_test)
 
