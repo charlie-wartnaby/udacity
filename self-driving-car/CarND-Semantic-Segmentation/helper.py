@@ -70,8 +70,9 @@ def gen_batch_function(data_folder, image_shape, num_classes, batch_size, quick_
                 gt_image = np.concatenate((gt_bg, np.invert(gt_bg)), axis=2) # inverted so 1=non-background
                 # CW: so for each point, now have one-hot array like [0,1] (not background, is road) or
                 #                                                    [1,0] (is background, not road)
-                # Convert Booleans to float
-                gt_image = gt_image.astype(np.float32)
+
+                # Convert Booleans to float (actually works OK without doing this anyway)
+                #gt_image = gt_image.astype(np.float32)
                 
                 # TODO -- so network will identify 'other' roads, (black in ground truth images),
                 #         not just 'our' road (magenta in images) -- is that OK/intended?
