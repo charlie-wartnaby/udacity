@@ -454,20 +454,7 @@ def run():
               batch_size=batch_size,
               steps_per_epoch = num_images / batch_size)
 
-    # CW: add operations to classify each pixel by class and assess performance
-    # Input label size dynamic because have odd number of images as last batch; can get away without specifying 
-    # shape in such detail (e.g. [None,None,None,num_classes] but specifying those we know to hopefully make bugs more apparent
-    # Note: image shape transposed using Pillow Image.open and Numpy conversion compared with original scipy function
-    correct_label = tf.compat.v1.placeholder(tf.float32, shape=[None,image_shape[1],image_shape[0],num_classes], name='correct_label')
-
-    # Reshape labels as one-hot matrix spanning all of the pixels from all of the images concatenated together
-    flattened_label = tf.reshape(correct_label, (-1, num_classes), name='flattened_label')
-
-    learning_rate = tf.compat.v1.placeholder(tf.float32, shape=(), name='learning_rate')
-
-    logits, train_op, cross_entropy_loss = optimize(layer_output, correct_label, learning_rate, num_classes)
-
-    helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image, quick_run_test)
+    helper.save_inference_samples(runs_dir, data_dir, model, image_shape, quick_run_test)
 
     # OPTIONAL: Apply the trained model to a video
 

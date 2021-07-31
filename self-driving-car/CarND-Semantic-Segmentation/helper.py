@@ -81,7 +81,7 @@ def gen_batch_function(data_folder, image_shape, num_classes, batch_size, quick_
         yield (np.array(images), np.array(gt_images)) # return this batch
 
 
-def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape):
+def gen_test_output(model, data_folder, image_shape):
     """
     Generate test output using the test images
     :param sess: TF session
@@ -93,23 +93,26 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
     :return: Output for for each test image
     """
     for image_file in glob(os.path.join(data_folder, 'image_2', '*.png')):
+        images = []
         unscaled_image = Image.open(image_file)
-        image = np.array(unscaled_image.resize(image_shape))
+        scaled_image = unscaled_image.resize(image_shape)
+        images.append(np.array(scaled_image))
 
-        im_softmax = sess.run(
-            [tf.nn.softmax(logits)],
-            {keep_prob: 1.0, image_pl: [image]})
-        im_softmax = im_softmax[0][:, 1].reshape(image_shape[1], image_shape[0])
-        segmentation = (im_softmax > 0.5).reshape(image_shape[1], image_shape[0], 1)
-        mask = np.dot(segmentation, np.array([[0, 255, 0, 127]], dtype=np.uint8))
+        softmax_predictions = model.predict(np.array(images))
+
+        softmax_prediction = softmax_predictions[0]
+        predicted_class0 = softmax_prediction[:,:,0]
+        segmentation_flag = (predicted_class0 > 0.5)
+        segmentation_array = np.reshape(segmentation_flag, (image_shape[0], image_shape[1], 1))
+        mask = np.dot(segmentation_array, np.array([[0, 255, 0, 127]], dtype=np.uint8))
         mask = Image.fromarray(mask, mode="RGBA")
-        street_im = Image.fromarray(image)
+        street_im = scaled_image
         street_im.paste(mask, box=None, mask=mask)
 
         yield os.path.basename(image_file), street_im
 
 
-def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image, quick_run_test):
+def save_inference_samples(runs_dir, data_dir, model, image_shape, quick_run_test):
     # Make folder for current run
     output_dir = os.path.join(runs_dir, str(time.time()))
     if os.path.exists(output_dir):
@@ -119,7 +122,7 @@ def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_p
     # Run NN on test images and save them to HD
     print('Training Finished. Saving test images to: {}'.format(output_dir))
     image_outputs = gen_test_output(
-        sess, logits, keep_prob, input_image, os.path.join(data_dir, 'data_road/testing'), image_shape)
+        model, os.path.join(data_dir, 'data_road/testing'), image_shape)
     count = 0
     for name, image in image_outputs:
         image.save(os.path.join(output_dir, name))
