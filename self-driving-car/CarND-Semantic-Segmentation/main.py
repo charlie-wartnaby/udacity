@@ -314,7 +314,8 @@ def run():
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
-    # Other hyperparameters in train_nn(); would have put them here but went with template calling structure
+    keep_prob = 0.5
+    learning_rate = 0.001
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
     model = load_vgg()
@@ -326,7 +327,8 @@ def run():
     # CW: add our own layers to do transpose convolution skip connections from encoder
     model = add_layers(model, num_classes) # get final layer out
 
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    opt = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
 
     # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
     # You'll need a GPU with at least 10 teraFLOPS to train on.
