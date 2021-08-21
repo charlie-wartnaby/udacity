@@ -40,7 +40,7 @@ else:
     print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
 
-def load_vgg():
+def load_vgg(keep_prob):
     """
     Load Pretrained VGG Model into TensorFlow.
     :param sess: TensorFlow Session
@@ -103,8 +103,9 @@ predictions (Dense)          (None, 1000)              4097000
     fc2         = library_model.get_layer("fc2")
     predictions = library_model.get_layer("predictions")
     # Create the dropout layers
-    dropout1 = tf.keras.layers.Dropout(0.85, name="dropout1")
-    dropout2 = tf.keras.layers.Dropout(0.85, name="dropout2")
+    drop_prob = 1.0 - keep_prob
+    dropout1 = tf.keras.layers.Dropout(drop_prob, name="dropout1")
+    dropout2 = tf.keras.layers.Dropout(drop_prob, name="dropout2")
     # Reconnect the layers
     x = dropout1(fc1.output)
     x = fc2(x)
@@ -318,11 +319,7 @@ def run():
     learning_rate = 0.001
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
-    model = load_vgg()
-
-    # Fetch tensors for input and output by name https://stackoverflow.com/questions/41711190/keras-how-to-get-the-output-of-each-layer
-    image_input = model.get_layer('input_1').input
-    keep_prob   = model.get_layer('dropout1').output
+    model = load_vgg(keep_prob)
 
     # CW: add our own layers to do transpose convolution skip connections from encoder
     model = add_layers(model, num_classes) # get final layer out
@@ -350,8 +347,6 @@ def run():
               batch_size=batch_size,
               steps_per_epoch = num_images / batch_size,
               epochs=epochs)
-
-    # TODO: how to apply dropout probability and learning rate as before?
 
     helper.save_inference_samples(runs_dir, data_dir, model, image_shape, quick_run_test)
 
