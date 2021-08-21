@@ -315,8 +315,8 @@ def run():
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
-    keep_prob = 0.5
-    learning_rate = 0.001
+    keep_prob = 0.8
+    learning_rate = 0.0002
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
     model = load_vgg(keep_prob)
