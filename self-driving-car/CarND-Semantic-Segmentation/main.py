@@ -92,6 +92,10 @@ predictions (Dense)          (None, 1000)              4097000
     print("VGG model as initially loaded:")
     library_model.summary() # works with Functional object but not AutoTrackable
 
+    # Tried returning model without insertion of dropout layers, but still
+    # not learning correctly so not that
+    #return library_model
+
     # Original tf v1
     # Following walkthrough tips
     #tf.compat.v1.saved_model.loader.load(sess, [vgg_tag], vgg_path)
@@ -315,7 +319,7 @@ def run():
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
-    keep_prob = 0.8
+    keep_prob = 0.5  # Currently makes no difference if 0 or 1 so not working
     learning_rate = 0.0002
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
