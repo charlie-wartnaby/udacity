@@ -328,7 +328,7 @@ def run():
     #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
     #opt = tf.keras.optimizers.Adadelta(learning_rate=0.05) # About 80% accuracy but result images still look random
     #opt = tf.keras.optimizers.Adagrad(learning_rate=0.01)
-    #opt = tf.keras.optimizers.Ftrl() # Much better loss (~0.5) but output still looks random
+    opt = tf.keras.optimizers.Ftrl(learning_rate=0.01) # Much better loss (~0.5) but output still looks random
     #opt = tf.keras.optimizers.Nadam() # Equally poor as most others
     #opt = tf.keras.optimizers.SGD() # Blew up
     #opt = tf.keras.optimizers.Adamax() # No better
