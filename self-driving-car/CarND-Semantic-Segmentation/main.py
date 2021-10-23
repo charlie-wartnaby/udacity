@@ -14,6 +14,7 @@ import time
 import datetime
 import warnings
 from distutils.version import LooseVersion
+from PIL import Image
 import project_tests as tests
 
 
@@ -347,6 +348,23 @@ def run():
 
     data_path = os.path.join(data_dir, 'data_road/training')
     num_images, image_paths = helper.get_image_paths(data_path, quick_run_test)
+
+    if False:
+        # Debug: re-emitting training data as images to check still looks reasonable. Which it does, so
+        # input processing doesn't seem to be the problem
+        for i in range(num_images):
+            x_debug_fn = helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test)
+            x_debug_data = next(x_debug_fn)
+            image_array = x_debug_data[0][0]
+            class_array = x_debug_data[1][0]
+            road_image = Image.fromarray(image_array, mode='RGB')
+            road_image.save(r'c:\temp\road_image' + str(i) + '.png')
+            for j in range(2):
+                class_array_class = class_array[:,:,j]
+                class_array_scaled = np.uint8(class_array_class * 255) # PIL greyscale load gives odd results unless uint8 input
+                class_image = Image.fromarray(class_array_scaled, mode='L')
+                class_image.save(r'c:\temp\class_image_' + str(j) + '_' + str(i) + '.png')
+
     model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
               batch_size=batch_size,
               steps_per_epoch = num_images / batch_size,
