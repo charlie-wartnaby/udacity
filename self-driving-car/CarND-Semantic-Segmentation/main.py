@@ -1,7 +1,3 @@
-############################################################################### 
-#    Udacity self-driving car course : Semantic Segregation Project.
-#
-#   Author : Charlie Wartnaby, Applus IDIADA
 #   Email  : charlie.wartnaby@idiada.com
 #
 ############################################################################### 
@@ -318,10 +314,10 @@ def run():
     quick_run_test = False # For debug
 
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
-    epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
+    epochs = 2 if quick_run_test else 100 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
     keep_prob = 0.5  # Currently makes no difference if 0 or 1 so not working
-    learning_rate = 0.0002
+    learning_rate = 0.01
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
     model = load_vgg(keep_prob)
@@ -329,7 +325,14 @@ def run():
     # CW: add our own layers to do transpose convolution skip connections from encoder
     model = add_layers(model, num_classes) # get final layer out
 
-    opt = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
+    #opt = tf.keras.optimizers.Adadelta(learning_rate=0.05) # About 80% accuracy but result images still look random
+    #opt = tf.keras.optimizers.Adagrad(learning_rate=0.01)
+    #opt = tf.keras.optimizers.Ftrl() # Much better loss (~0.5) but output still looks random
+    #opt = tf.keras.optimizers.Nadam() # Equally poor as most others
+    #opt = tf.keras.optimizers.SGD() # Blew up
+    #opt = tf.keras.optimizers.Adamax() # No better
+    #opt = tf.keras.optimizers.RMSprop() # No better
     model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
 
     # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
