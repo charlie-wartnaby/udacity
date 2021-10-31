@@ -280,8 +280,8 @@ def run():
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
-    keep_prob = 0.5  # Currently makes no difference if 0 or 1 so not working
-    learning_rate = 0.001
+    keep_prob = 0.7  # In original project used high dropout rate, eventually better 
+    learning_rate = 0.002
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
     model = load_vgg(keep_prob)
@@ -289,8 +289,8 @@ def run():
     # CW: add our own layers to do transpose convolution skip connections from encoder
     model = add_layers(model, num_classes) # get final layer out
 
-    opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
-    #opt = tf.keras.optimizers.Ftrl(learning_rate=0.005) # Maybe works better?
+    #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
+    opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # Maybe works better?
     model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
 
     # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
@@ -315,6 +315,10 @@ def run():
                 class_array_scaled = np.uint8(class_array_class * 255) # PIL greyscale load gives odd results unless uint8 input
                 class_image = Image.fromarray(class_array_scaled, mode='L')
                 class_image.save(r'c:\temp\class_image_' + str(j) + '_' + str(i) + '.png')
+
+    # Note: there isn't a proper separation of training and validation
+    # data in this currently, so the result is likely to be
+    # overfitted to the training set
 
     model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
               batch_size=batch_size,
