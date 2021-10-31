@@ -84,10 +84,15 @@ predictions (Dense)          (None, 1000)              4097000
     #tf_loaded_model = tf.saved_model.load(vgg_path) # Seem to get identical AutoTrackable object with this call
 
     # TODO different sets of weights available for this...
-    library_model = tf.keras.applications.VGG16() # But this gives tensorflow.python.keras.engine.functional.Functional object fetched from https://storage.googleapis.com/tensorflow/keras-applications/vgg16/vgg16_weights_tf_dim_ordering_tf_kernels.h5
+    library_model = tf.keras.applications.VGG16(weights='imagenet') # But this gives tensorflow.python.keras.engine.functional.Functional object fetched from https://storage.googleapis.com/tensorflow/keras-applications/vgg16/vgg16_weights_tf_dim_ordering_tf_kernels.h5
     # Note: that gets cached in <user>\.keras\models
     print("VGG model as initially loaded:")
     library_model.summary() # works with Functional object but not AutoTrackable
+
+    for layer in library_model.layers:
+        layer.Trainable = False
+
+    library_model.trainable = False 
 
     # Tried returning model without insertion of dropout layers, but still
     # not learning correctly so not that
@@ -317,7 +322,7 @@ def run():
     epochs = 2 if quick_run_test else 100 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
     keep_prob = 0.5  # Currently makes no difference if 0 or 1 so not working
-    learning_rate = 0.01
+    learning_rate = 0.005
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
     model = load_vgg(keep_prob)
@@ -328,7 +333,7 @@ def run():
     #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
     #opt = tf.keras.optimizers.Adadelta(learning_rate=0.05) # About 80% accuracy but result images still look random
     #opt = tf.keras.optimizers.Adagrad(learning_rate=0.01)
-    opt = tf.keras.optimizers.Ftrl(learning_rate=0.01) # Much better loss (~0.5) but output still looks random
+    opt = tf.keras.optimizers.Ftrl(learning_rate=0.005) # Much better loss (~0.5) but output still looks random
     #opt = tf.keras.optimizers.Nadam() # Equally poor as most others
     #opt = tf.keras.optimizers.SGD() # Blew up
     #opt = tf.keras.optimizers.Adamax() # No better
