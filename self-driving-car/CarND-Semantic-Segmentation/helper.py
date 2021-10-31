@@ -104,7 +104,7 @@ def gen_test_output(model, data_folder, image_shape):
 
         softmax_prediction = softmax_predictions[0]
         predicted_class0 = softmax_prediction[:,:,0]
-        segmentation_flag = (predicted_class0 > 0.5)
+        segmentation_flag = (predicted_class0 < 0.5)
         segmentation_array = np.reshape(segmentation_flag, (image_shape[0], image_shape[1], 1))
         mask = np.dot(segmentation_array, np.array([[0, 255, 0, 127]], dtype=np.uint8))
         mask = Image.fromarray(mask, mode="RGBA")
