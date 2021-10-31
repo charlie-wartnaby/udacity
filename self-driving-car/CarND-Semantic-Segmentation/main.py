@@ -76,32 +76,27 @@ fc1 (Dense)                  (None, 4096)              102764544  Note: no dropo
 fc2 (Dense)                  (None, 4096)              16781312  
 predictions (Dense)          (None, 1000)              4097000
  """
-    vgg_tag = 'vgg16'    
  
     # Loading originally provided model for this project doesn't work; get AutoTrackable object without
     # the same interface as tensorflow.python.keras.engine.functional.Functional object got from library:
     #keras_loaded_model = tf.keras.models.load_model(vgg_path) # I'm sure model.summary() worked initially after this, but now get exception AutoTrackable object has no attribute summary
     #tf_loaded_model = tf.saved_model.load(vgg_path) # Seem to get identical AutoTrackable object with this call
 
-    # TODO different sets of weights available for this...
-    library_model = tf.keras.applications.VGG16(weights='imagenet') # But this gives tensorflow.python.keras.engine.functional.Functional object fetched from https://storage.googleapis.com/tensorflow/keras-applications/vgg16/vgg16_weights_tf_dim_ordering_tf_kernels.h5
+    # This gives tensorflow.python.keras.engine.functional.Functional object fetched from
+    #  https://storage.googleapis.com/tensorflow/keras-applications/vgg16/vgg16_weights_tf_dim_ordering_tf_kernels.h5
+    library_model = tf.keras.applications.VGG16(weights='imagenet')
     # Note: that gets cached in <user>\.keras\models
     print("VGG model as initially loaded:")
     library_model.summary() # works with Functional object but not AutoTrackable
 
-    for layer in library_model.layers:
-        layer.Trainable = False
-
+    # To avoid retraining pre-trained layers, make them untrainable. But doing this
+    # for individual layers like this doesn't seem to work:
+    #for layer in library_model.layers:
+    #    layer.Trainable = False
+    # Whereas making whole model (as it is first loaded) untrainable does seem to work,
+    # with the custom added layers still being trainable. Odd.
     library_model.trainable = False 
 
-    # Tried returning model without insertion of dropout layers, but still
-    # not learning correctly so not that
-    #return library_model
-
-    # Original tf v1
-    # Following walkthrough tips
-    #tf.compat.v1.saved_model.loader.load(sess, [vgg_tag], vgg_path)
-    #graph = tf.compat.v1.get_default_graph()
 
     # https://stackoverflow.com/questions/42475381/add-dropout-layers-between-pretrained-dense-layers-in-keras
     # Store the fully connected layers
@@ -202,15 +197,6 @@ def add_layers(model, num_classes):
                                              padding='same',
                                              kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                              name='layer8')
-                   # tf.compat.v1.layers.conv2d_transpose(vgg_layer7_out, #inputs
-                   #                     num_classes, # filters so going down from 4096 to 2, is this a good idea yet?!
-                   #                     4, # kernel size taken from classroom example, might experiment
-                   #                     2, # stride causes upsampling
-                   #                     padding='same',
-                   #                     kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-                   #                     name='layer8')
-
-    
 
     # Now we're at 10x36x2 so we have same pixel resolution as layer4_out. Can't directly add
     # in layer4_out because it has filter depth of 512. (Though we could have had our transpose
@@ -222,13 +208,6 @@ def add_layers(model, num_classes):
                                              padding='same',
                                              kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                              name='layer4_squashed')
-    #layer4_squashed = tf.compat.v1.layers.conv2d(vgg_layer4_out,
-    #                                   num_classes, # new number of filters
-    #                                   1,    # 1x1 convolution so kernel size 1
-    #                                   padding='same',
-    #                                   kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-    #                                   name='layer4_squashed')
-
     # upsample by 2
     layer9 = tf.keras.layers.Conv2DTranspose(num_classes, # filters
                                              4, # kernel size taken from classroom example
@@ -236,13 +215,6 @@ def add_layers(model, num_classes):
                                              padding='same',
                                              kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                              name='layer9')
-    #layer9 = tf.compat.v1.layers.conv2d_transpose(layer8_plus_layer4,
-    #                                    num_classes,
-    #                                    4, # kernel size taken from classroom example, might experiment
-    #                                    2, # stride causes upsampling
-    #                                    padding='same',
-    #                                    kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-    #                                    name='layer9')
 
     # Now we're at 20x72x2 so same pixel resolution as layer3_out, but need to squash that from
     # 256 filters to 2 (num_classes) before we can add it in as skip connection
@@ -251,13 +223,6 @@ def add_layers(model, num_classes):
                                              padding='same',
                                              kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                              name='layer3_squashed')
-   #layer3_squashed = tf.compat.v1.layers.conv2d(vgg_layer3_out,
-    #                                   num_classes, # new number of filters
-    #                                   1,    # 1x1 convolution so kernel size 1
-    #                                   padding='same',
-    #                                   kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-    #                                   name='layer3_squashed')
-
 
     # upsample by 8 to get back to original image size
     layer10 = tf.keras.layers.Conv2DTranspose(num_classes,
@@ -266,13 +231,6 @@ def add_layers(model, num_classes):
                                               padding='same',
                                               kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
                                               name='layer10')
-    #layer10 = tf.compat.v1.layers.conv2d_transpose(layer9_plus_layer3,
-    #                                    num_classes,
-    #                                    32, # Finding quite large kernel works nicely
-    #                                    8, # stride causes upsampling
-    #                                    padding='same',
-    #                                    kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-    #                                    name='layer10')
 
     # so now we should be at 160x576x2, same as original image size, 2 classes
 
@@ -310,7 +268,8 @@ def run():
     # CW: originals are 1242x375 so we are using shrunk and somewhat squashed versions
     # (more extreme letterbox aspect ratio than originals). Shrinking will reduce training
     #  workload.
-    image_shape = (224,224) # Updated for keras library VGG16 (576, 160)  # width, height to fit Pillow.Image (prev scipy.image usage transposed)
+    image_shape = (224,224) # Updated for keras library VGG16
+                            # width, height to fit Pillow.Image (prev scipy.image usage transposed)
 
     data_dir = './data'
     runs_dir = './runs'
@@ -321,8 +280,8 @@ def run():
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
-    keep_prob = 0.8  # Currently makes no difference if 0 or 1 so not working
-    learning_rate = 0.01
+    keep_prob = 0.5  # Currently makes no difference if 0 or 1 so not working
+    learning_rate = 0.001
 
     # Load pretrained VGG16 including dropout layers not included in standard Keras version
     model = load_vgg(keep_prob)
@@ -331,24 +290,8 @@ def run():
     model = add_layers(model, num_classes) # get final layer out
 
     opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
-    #opt = tf.keras.optimizers.Adadelta(learning_rate=0.05) # About 80% accuracy but result images still look random
-    #opt = tf.keras.optimizers.Adagrad(learning_rate=0.01)
-    #opt = tf.keras.optimizers.Ftrl(learning_rate=0.005) # Much better loss (~0.5) but output still looks random
-    #opt = tf.keras.optimizers.Nadam() # Equally poor as most others
-    #opt = tf.keras.optimizers.SGD() # Blew up
-    #opt = tf.keras.optimizers.Adamax() # No better
-    #opt = tf.keras.optimizers.RMSprop() # No better
+    #opt = tf.keras.optimizers.Ftrl(learning_rate=0.005) # Maybe works better?
     model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
-
-    # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
-    # You'll need a GPU with at least 10 teraFLOPS to train on.
-    #  https://www.cityscapes-dataset.com/
-
-    # Create function to get batches
-    #get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape, num_classes, quick_run_test)
-
-    # OPTIONAL: Augment Images for better results
-    #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
 
     # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
     # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot

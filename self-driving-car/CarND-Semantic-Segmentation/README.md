@@ -5,8 +5,6 @@
 Warning: this has now had a rewrite since I originally submitted it for my Udacity
 course, to use the latest version of TensorFlow and Keras. See history for original version.
 
-Also it's not currently working!
-
 ## Original Details
 
 Self-Driving Car Engineer Nanodegree Program
