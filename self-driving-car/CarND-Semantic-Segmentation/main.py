@@ -4,6 +4,7 @@
 
 import os.path
 import tensorflow as tf
+import torch
 import helper
 import numpy as np
 import time
@@ -149,7 +150,7 @@ def add_layers(model, num_classes):
     #                          padding='same',
     #                          kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3))
 
-    # Using Tensorboard to visualise the structure of the VGG model provided, and
+    # Using Tensorboard to visualise the structure of the Udacity VGG model provided, and
     # tf.trainable_variables() to list the dimensions and sizes of the weights and biases
     # for each layer, I arrive at this summary of what shape the output of each layer
     # is (knowing that we started with a 160 height x 576 width x 3 colour channel image).
@@ -186,6 +187,11 @@ def add_layers(model, num_classes):
 
     layer3_out  = model.get_layer('block3_pool').output
     layer4_out  = model.get_layer('block4_pool').output
+
+    # Problem here: TF2 library model doesn't have image-shaped layers 6 & 7 like
+    # model provided originally with TF1, but instead is flattened amporphous classifier.
+    # So we're working with more 'raw' layer as input. TODO should add back
+    # two conv2d layers before this to be like the original
     layer7_out  = model.get_layer('block5_pool').output
 
     # Upsample by 2. We need to work our way down from a kernel depth of 4096
