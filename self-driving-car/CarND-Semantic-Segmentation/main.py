@@ -38,17 +38,11 @@ else:
     print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
 
-def load_vgg(keep_prob):
+def load_vgg():
     """
-    Load Pretrained VGG Model into TensorFlow.
-    :param sess: TensorFlow Session
-    :param vgg_path: Path to vgg folder, containing "variables/" and "saved_model.pb"
-    :return: Tuple of Tensors from VGG model (image_input, keep_prob, layer3_out, layer4_out, layer7_out)
+    Load Pretrained VGG Model
 
 https://github.com/Natsu6767/VGG16-Tensorflow/blob/master/vgg16.py shows KEEP_PROB dropout layer after fc1 and fc2
-
-The Keras standard VGG16 doesn't have the dropout layers used by this project in the original
-model provided. But see below for their insertion.
 
 Output from model.summary() for tf.keras.applications.VGG16() to figure out new layer names:
  Layer (type)                 Output Shape              Param #     Old project name/comments
@@ -71,9 +65,9 @@ block4_pool (MaxPooling2D)   (None, 14, 14, 512)       0         'layer4_out:0' 
 block5_conv1 (Conv2D)        (None, 14, 14, 512)       2359808
 block5_conv2 (Conv2D)        (None, 14, 14, 512)       2359808
 block5_conv3 (Conv2D)        (None, 14, 14, 512)       2359808
-block5_pool (MaxPooling2D)   (None, 7, 7, 512)         0          'layer7_out:0'  # Walkthrough: pool5 layer
-flatten (Flatten)            (None, 25088)             0
-fc1 (Dense)                  (None, 4096)              102764544  Note: no dropout layer in this library version
+block5_pool (MaxPooling2D)   (None, 7, 7, 512)         0                        # Walkthrough: pool5 layer
+flatten (Flatten)            (None, 25088)             0     # Amorphous classifier from now on, no longer image shaped like course original
+fc1 (Dense)                  (None, 4096)              102764544  Note: no dropout layers in this library version either
 fc2 (Dense)                  (None, 4096)              16781312  
 predictions (Dense)          (None, 1000)              4097000
  """
@@ -98,26 +92,14 @@ predictions (Dense)          (None, 1000)              4097000
     # with the custom added layers still being trainable. Odd.
     library_model.trainable = False 
 
-
-    # https://stackoverflow.com/questions/42475381/add-dropout-layers-between-pretrained-dense-layers-in-keras
-    # Store the fully connected layers
-    fc1         = library_model.get_layer("fc1")
-    fc2         = library_model.get_layer("fc2")
-    predictions = library_model.get_layer("predictions")
-    # Create the dropout layers
-    drop_prob = 1.0 - keep_prob
-    dropout1 = tf.keras.layers.Dropout(drop_prob, name="dropout1")
-    dropout2 = tf.keras.layers.Dropout(drop_prob, name="dropout2")
-    # Reconnect the layers
-    x = dropout1(fc1.output)
-    x = fc2(x)
-    x = dropout2(x)
-    predictors = predictions(x)
-    # Create a new model
-    mod_model = tf.keras.Model(inputs=library_model.input, outputs=predictors)
+    # Remove classifier layers which we'll replace with (small) image-shaped layers
+    # like version of VGG16 originally used for this course
+    block5_pool         = library_model.get_layer("block5_pool")
+    # Create a new model skipping the classifier part of the library original
+    mod_model = tf.keras.Model(inputs=library_model.input, outputs=block5_pool.output)
 
     # Display its architecture
-    print("VGG model after inserting dropout layers:")
+    print("VGG model after removing classifier:")
     mod_model.summary()
 
     return mod_model
@@ -126,14 +108,9 @@ predictions (Dense)          (None, 1000)              4097000
 #tests.test_load_vgg(load_vgg, tf)
 
 
-def add_layers(model, num_classes):
+def add_layers(model, num_classes, keep_prob):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
-    :param vgg_layer3_out: TF Tensor for VGG Layer 3 output
-    :param vgg_layer4_out: TF Tensor for VGG Layer 4 output
-    :param vgg_layer7_out: TF Tensor for VGG Layer 7 output
-    :param num_classes: Number of classes to classify
-    :return: The Tensor for the last layer of output
     """
     # DONE: Implement function
 
@@ -289,11 +266,11 @@ def run():
     keep_prob = 0.7  # In original project used high dropout rate, eventually better 
     learning_rate = 0.002
 
-    # Load pretrained VGG16 including dropout layers not included in standard Keras version
-    model = load_vgg(keep_prob)
+    # Load pretrained VGG16
+    model = load_vgg()
 
     # CW: add our own layers to do transpose convolution skip connections from encoder
-    model = add_layers(model, num_classes) # get final layer out
+    model = add_layers(model, num_classes, keep_prob) # get final layer out
 
     #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
     opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # Maybe works better?
