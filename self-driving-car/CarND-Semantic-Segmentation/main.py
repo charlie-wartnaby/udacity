@@ -295,7 +295,7 @@ def run():
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
-    keep_prob = 0.85 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
+    keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
 
     # Load pretrained VGG16
