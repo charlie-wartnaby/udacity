@@ -295,8 +295,8 @@ def run():
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
-    keep_prob = 0.7  # In original project used high dropout rate, eventually better 
-    learning_rate = 0.002
+    keep_prob = 0.85 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
+    learning_rate = 0.001
 
     # Load pretrained VGG16
     model = load_vgg()
@@ -304,8 +304,8 @@ def run():
     # CW: add our own layers to do transpose convolution skip connections from encoder
     model = add_layers(model, num_classes, keep_prob) # get final layer out
 
-    #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
-    opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # Maybe works better?
+    #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original, doesn't converge now, loss ~4 accuracy ~0.8 (no better than random)
+    opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # better when didn't have VGG 7x7 classifier layers; loss ~1 (keep_prob=0.7) ~0.56 (kp=0.9) accuracy ~0.93 recently
     model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
 
     # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
