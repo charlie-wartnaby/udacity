@@ -169,7 +169,39 @@ def add_layers(model, num_classes, keep_prob):
     # model provided originally with TF1, but instead is flattened amporphous classifier.
     # So we're working with more 'raw' layer as input. TODO should add back
     # two conv2d layers before this to be like the original
-    layer7_out  = model.get_layer('block5_pool').output
+    drop_prob = 1.0 - keep_prob
+
+    layer5  = model.get_layer('block5_pool')
+
+    layer6_conv = tf.keras.layers.Conv2D(4096,
+                                         7,          # 7x7 patch from original Udacity model
+                                         strides=(1,1),
+                                         padding='same',
+                                         kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)), # guess same as others
+                                         name='layer6_conv')
+
+    layer6_dropout = tf.keras.layers.Dropout(drop_prob, name="layer6_dropout")
+
+    layer7_conv = tf.keras.layers.Conv2D(4096,
+                                         1,         # 1x1 patch from original Udacity model
+                                         strides=(1,1),
+                                         padding='same',
+                                         kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)), # guess
+                                         name='layer7_conv')
+
+    layer7_dropout = tf.keras.layers.Dropout(drop_prob, name="layer7_dropout")
+
+    # Connect up the new layers
+    x = layer6_conv(layer5.output)
+    x = layer6_dropout(x)
+    x = layer7_conv(x)
+    layer7 = layer7_dropout(x)
+
+    # Create a new model
+    mod_model = tf.keras.Model(inputs=model.input, outputs=layer7)
+
+    # We should now have the same structure as the original Udacity version of VGG16,
+    # but still need to add the decoder and skip connections as before
 
     # Upsample by 2. We need to work our way down from a kernel depth of 4096
     # to just our number of classes (i.e. 2). Should we do this all in one go?
@@ -218,7 +250,7 @@ def add_layers(model, num_classes, keep_prob):
     # so now we should be at 160x576x2, same as original image size, 2 classes
 
     # Connect the layers
-    x1 = layer8(layer7_out)
+    x1 = layer8(layer7)
     x2 = layer4_squashed(layer4_out)
 
     # now we can add skip layer of this dimension taken from corresponding encoder layer
