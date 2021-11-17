@@ -286,6 +286,11 @@ def keras_add_layers(model, num_classes, keep_prob):
 # Not updated for v2 yet:
 #tests.test_layers(add_layers)
 
+def torch_add_layers(model, num_classes, keep_prob):
+
+    # TODO
+    return model
+
 
 def run():
     num_classes = 2 #  CW: just road or 'other'
@@ -316,11 +321,18 @@ def run():
         model = torch_load_vgg()
 
     # CW: add our own layers to do transpose convolution skip connections from encoder
-    model = keras_add_layers(model, num_classes, keep_prob) # get final layer out
+    if (framework == 'keras'):
+        model = keras_add_layers(model, num_classes, keep_prob) # get final layer out
+    else:
+        model = torch_add_layers(model, num_classes, keep_prob)
 
-    #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original, converges slowly now needing small learning rate e.g. 0.0001
-    opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # better when didn't have VGG 7x7 classifier layers; loss ~1 (keep_prob=0.7) ~0.56 (kp=0.9) accuracy ~0.93 recently
-    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
+    # Prepare model to run
+    if (framework == 'keras'):
+        #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original, converges slowly now needing small learning rate e.g. 0.0001 and 100+ epochs (250 was good but prob unnecessary, ~0.94 training accuracy though 1.5 loss)
+        opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # better when didn't have VGG 7x7 classifier layers; loss ~1 (keep_prob=0.7) ~0.56 (kp=0.9) accuracy ~0.93 recently
+        model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
+    else:
+        pass
 
     # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
     # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot
@@ -349,12 +361,15 @@ def run():
     # data in this currently, so the result is likely to be
     # overfitted to the training set
 
-    model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
-              batch_size=batch_size,
-              steps_per_epoch = num_images / batch_size,
-              epochs=epochs)
+    if (framework == 'keras'):
+        model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
+                batch_size=batch_size,
+                steps_per_epoch = num_images / batch_size,
+                epochs=epochs)
+    else:
+        pass
 
-    helper.save_inference_samples(runs_dir, data_dir, model, image_shape, quick_run_test)
+    helper.save_inference_samples(framework, runs_dir, data_dir, model, image_shape, quick_run_test)
 
     # OPTIONAL: Apply the trained model to a video
 
