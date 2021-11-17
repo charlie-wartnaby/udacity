@@ -83,7 +83,7 @@ def gen_batch_function(data_folder, image_shape, num_classes, batch_size, quick_
             yield (np.array(images), np.array(gt_images)) # return this batch
 
 
-def gen_test_output(model, data_folder, image_shape):
+def gen_test_output(framework, model, data_folder, image_shape):
     """
     Generate test output using the test images
     :param sess: TF session
@@ -100,8 +100,11 @@ def gen_test_output(model, data_folder, image_shape):
         scaled_image = unscaled_image.resize(image_shape)
         images.append(np.array(scaled_image))
 
-        softmax_predictions = model.predict(np.array(images))
-
+        if (framework == 'keras'):
+            softmax_predictions = model.predict(np.array(images))
+        else:
+            pass
+        
         softmax_prediction = softmax_predictions[0]
         predicted_class0 = softmax_prediction[:,:,0]
         segmentation_flag = (predicted_class0 < 0.5)
@@ -115,7 +118,7 @@ def gen_test_output(model, data_folder, image_shape):
         yield os.path.basename(image_file), street_im
 
 
-def save_inference_samples(runs_dir, data_dir, model, image_shape, quick_run_test):
+def save_inference_samples(framework, runs_dir, data_dir, model, image_shape, quick_run_test):
     # Make folder for current run
     output_dir = os.path.join(runs_dir, str(time.time()))
     if os.path.exists(output_dir):
@@ -124,7 +127,7 @@ def save_inference_samples(runs_dir, data_dir, model, image_shape, quick_run_tes
 
     # Run NN on test images and save them to HD
     print('Training Finished. Saving test images to: {}'.format(output_dir))
-    image_outputs = gen_test_output(
+    image_outputs = gen_test_output(framework,
         model, os.path.join(data_dir, 'data_road/testing'), image_shape)
     count = 0
     for name, image in image_outputs:

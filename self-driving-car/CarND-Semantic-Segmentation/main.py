@@ -38,7 +38,7 @@ else:
     print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
 
-def load_vgg():
+def keras_load_vgg():
     """
     Load Pretrained VGG Model
 
@@ -107,8 +107,18 @@ predictions (Dense)          (None, 1000)              4097000
 # Not yet updated for v2 changes:
 #tests.test_load_vgg(load_vgg, tf)
 
+def torch_load_vgg():
+    # Downloads on Win10 by default to C:\Users\<username>/.cache\torch\hub\checkpoints\vgg16-397923af.pth
+    # Source: https://github.com/pytorch/vision/blob/main/torchvision/models/vgg.py
+    vgg = models.vgg16(pretrained=True)
 
-def add_layers(model, num_classes, keep_prob):
+    print("Torch VGG model structure before modifications:")
+    print(vgg)
+
+    return vgg
+
+
+def keras_add_layers(model, num_classes, keep_prob):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
     """
@@ -297,14 +307,18 @@ def run():
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
     keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
+    framework = "keras"
 
     # Load pretrained VGG16
-    model = load_vgg()
+    if (framework == 'keras'):
+        model = keras_load_vgg()
+    else:
+        model = torch_load_vgg()
 
     # CW: add our own layers to do transpose convolution skip connections from encoder
-    model = add_layers(model, num_classes, keep_prob) # get final layer out
+    model = keras_add_layers(model, num_classes, keep_prob) # get final layer out
 
-    #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original, doesn't converge now, loss ~4 accuracy ~0.8 (no better than random)
+    #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original, converges slowly now needing small learning rate e.g. 0.0001
     opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # better when didn't have VGG 7x7 classifier layers; loss ~1 (keep_prob=0.7) ~0.56 (kp=0.9) accuracy ~0.93 recently
     model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
 
