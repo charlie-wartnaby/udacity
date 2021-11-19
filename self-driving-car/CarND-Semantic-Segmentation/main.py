@@ -288,7 +288,22 @@ def keras_add_layers(model, num_classes, keep_prob):
 
 def torch_add_layers(model, num_classes, keep_prob):
 
-    # TODO
+    # Library model ends with 'classifier' block we don't want
+
+    # Listing modules gives a module for each Sequential group *and* a module for
+    # each module within that
+    # Iterating over model children just gives the top-level modules, e.g.
+    # for VGG16 get 3 (Sequential encoder stack, avgpool, classifier)
+
+    # TODO maybe have to subclass torch.nn.Module to build new model,
+    # or just build torch.nn.Sequential() from list of existing layers?
+
+    # Index of encoder children in pretrained VGG16 we need to attach
+    # skip layers or output to (layers don't have names, sadly): 
+    #  16 MaxPool2d layer3_out
+    #  23 MaxPool2d layer4_out
+    #  30 MaxPool2d layer7_out
+
     return model
 
 
