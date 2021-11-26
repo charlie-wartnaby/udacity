@@ -7,6 +7,8 @@ import torchvision.models
 # Subclass Torchvision library model to build own model with required structure
 # Source code here:
 # https://pytorch.org/vision/stable/_modules/torchvision/models/vgg.html
+# Nice very general FCN implementation example here:
+# https://github.com/pochih/FCN-pytorch/blob/master/python/fcn.py
 class VggFcn(torchvision.models.VGG):
     def __init__(self, keep_prob=0.5, num_classes=2):
         self = torchvision.models.vgg16(pretrained=True) # can I do this?

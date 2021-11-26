@@ -340,9 +340,6 @@ def run():
                 class_image = Image.fromarray(class_array_scaled, mode='L')
                 class_image.save(r'c:\temp\class_image_' + str(j) + '_' + str(i) + '.png')
 
-    # Note: there isn't a proper separation of training and validation
-    # data in this currently, so the result is likely to be
-    # overfitted to the training set
 
     if (framework == 'keras'):
         model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
@@ -350,6 +347,11 @@ def run():
                 steps_per_epoch = num_images / batch_size,
                 epochs=epochs)
     else:
+        # Need Torch DataSet/TensorDaatSet to populate Torch tensors (can I reuse existing batch function
+        # to load dynamically into Torch tensors?)
+        # And DataLoader for preprocessing? 
+        # https://discuss.pytorch.org/t/what-do-tensordataset-and-dataloader-do/107017
+        # Then Torch style training
         pass
 
     helper.save_inference_samples(framework, runs_dir, data_dir, model, image_shape, quick_run_test)
