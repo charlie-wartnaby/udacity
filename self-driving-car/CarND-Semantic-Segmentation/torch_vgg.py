@@ -7,9 +7,9 @@ import torchvision.models
 # Subclass Torchvision library model to build own model with required structure
 # Source code here:
 # https://pytorch.org/vision/stable/_modules/torchvision/models/vgg.html
-class VggFcn(torchvision.models.vgg16):
+class VggFcn(torchvision.models.VGG):
     def __init__(self, keep_prob=0.5, num_classes=2):
-        super().__init__(pretrained=True)
+        self = torchvision.models.vgg16(pretrained=True) # can I do this?
 
         # The library model is divided into these modules as class attributes:
         #   self.features -- encoder
@@ -58,10 +58,7 @@ class VggFcn(torchvision.models.vgg16):
         # Squash layer4 output with 1x1 convolution so that it has compatible filter depth (i.e. num_classes)
         self.layer4_squashed = torch.nn.Conv2d(512, # in_channels
                                                 num_classes, # out_channels (new number of filters)
-                                                1,    # 1x1 convolution so kernel size 1
-                                                padding='same',
-                                                kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)),
-                                                name='layer4_squashed')
+                                                1)    # 1x1 convolution so kernel size 1
 
         self.layer4_squashed_activation = torch.nn.ReLU()
 

@@ -5,7 +5,6 @@
 import os.path
 import tensorflow as tf
 import torch
-import torchvision.models
 import numpy as np
 import time
 import datetime
@@ -15,7 +14,7 @@ from PIL import Image
 
 import helper
 import project_tests as tests
-
+import torch_vgg
 
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
@@ -108,20 +107,6 @@ predictions (Dense)          (None, 1000)              4097000
 
 # Not yet updated for v2 changes:
 #tests.test_load_vgg(load_vgg, tf)
-
-def torch_load_vgg():
-    # Downloads on Win10 by default to C:\Users\<username>/.cache\torch\hub\checkpoints\vgg16-397923af.pth
-    # Source: https://github.com/pytorch/vision/blob/main/torchvision/models/vgg.py
-    vgg = torchvision.models.vgg16(pretrained=True)
-
-    # https://stackoverflow.com/questions/52548174/how-to-remove-the-last-fc-layer-from-a-resnet-model-in-pytorch
-    mod_vgg = torch.nn.Sequential(*(list(vgg.children())[:-1]))
-
-    print("Torch VGG model structure after removal of classifier module:")
-    print(vgg)
-
-    return vgg
-
 
 def keras_add_layers(model, num_classes, keep_prob):
     """
@@ -291,41 +276,6 @@ def keras_add_layers(model, num_classes, keep_prob):
 # Not updated for v2 yet:
 #tests.test_layers(add_layers)
 
-def torch_add_layers(model, num_classes, keep_prob):
-
-    # Library model ends with 'classifier' block we don't want
-
-    # Listing modules gives a module for each Sequential group *and* a module for
-    # each module within that
-    # Iterating over model children just gives the top-level modules, e.g.
-    # for VGG16 get 3 (Sequential encoder stack, avgpool, classifier)
-
-    # TODO maybe have to subclass torch.nn.Module to build new model,
-    # or just build torch.nn.Sequential() from list of existing layers?
-    # Think have to build own class in order to implement skip layers,
-    # Sequential() will only connect successive layers linearly.
-    # Nice very general FCN implementation example here:
-    # https://github.com/pochih/FCN-pytorch/blob/master/python/fcn.py
-
-    # Index of encoder children in pretrained VGG16 we need to attach
-    # skip layers or output to (layers don't have names, sadly): 
-    #  16 MaxPool2d layer3_out
-    #  23 MaxPool2d layer4_out
-    #  30 MaxPool2d layer7_out
-
-    drop_prob = 1.0 - keep_prob
-
-    layer6_conv = torch.nn.Conv2d(512,        # input channels
-                                  4096,       # output channels
-                                  7,          # 7x7 patch from original Udacity model
-                                  stride=(1,1),
-                                  padding='same')
-
-    layer6_conv_activation = torch.nn.ReLU()
-
-    layer6_dropout = torch.nn.Dropout(p=drop_prob)
-
-    return model
 
 
 def run():
@@ -348,19 +298,16 @@ def run():
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
     keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
+    num_classes = 2 # road or not road
     framework = "torch"
 
     # Load pretrained VGG16
     if (framework == 'keras'):
         model = keras_load_vgg()
-    else:
-        model = torch_load_vgg()
-
-    # CW: add our own layers to do transpose convolution skip connections from encoder
-    if (framework == 'keras'):
+        # CW: add our own layers to do transpose convolution skip connections from encoder
         model = keras_add_layers(model, num_classes, keep_prob) # get final layer out
     else:
-        model = torch_add_layers(model, num_classes, keep_prob)
+        model = torch_vgg.VggFcn(keep_prob=keep_prob, num_classes=num_classes)
 
     # Prepare model to run
     if (framework == 'keras'):
