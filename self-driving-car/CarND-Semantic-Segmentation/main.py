@@ -318,7 +318,7 @@ def run():
         opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # better when didn't have VGG 7x7 classifier layers; loss ~1 (keep_prob=0.7) ~0.56 (kp=0.9) accuracy ~0.93 recently
         model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
     else:
-        pass
+        use_gpu = torch.cuda.is_available()
 
     # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
     # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot
@@ -357,9 +357,33 @@ def run():
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
         # Then Torch style training
+        # Adapted from https://github.com/pochih/FCN-pytorch/blob/master/python/train.py
         criterion = torch.nn.BCEWithLogitsLoss()
         optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+
+        for epoch in range(epochs):
+            scheduler.step()
+
+            ts = time.time()
+            for iter, batch in enumerate(dataloader):
+                optimizer.zero_grad()
+
+                if use_gpu:
+                    inputs = torch.autograd.Variable(batch[0].cuda()) # Source example indexed batch as dict though, 'X' & 'Y'
+                    labels = torch.autograd.Variable(batch[1].cuda())
+                else:
+                    inputs, labels = torch.autograd.Variable(batch[0]), torch.autograd.Variable(batch[1])
+
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+
+                if iter % 10 == 0:
+                    print("epoch{}, iter{}, loss: {}".format(epoch, iter, loss.data[0]))
+            
+            print("Finish epoch {}, time elapsed {}".format(epoch, time.time() - ts))
 
     helper.save_inference_samples(framework, runs_dir, data_dir, model, image_shape, quick_run_test)
 
