@@ -1,6 +1,7 @@
 # Implement FCN based on VGG16 in same structure as original project,
 # but using PyTorch library
 
+import numpy as np
 import torch
 import torchvision.models
 
@@ -111,12 +112,10 @@ class VggFcn(torchvision.models.VGG):
         #  16 MaxPool2d layer3_out
         #  23 MaxPool2d layer4_out
         # Is there a better way to access specific modules?
-        i = 0
-        for module in self.features.modules():
+        for i, module in enumerate(self.features.modules()):
             x = module(x)
             if (i == 16) : layer3_out = x
             if (i == 23) : layer4_out = x
-            i += 1
 
         x = self.features(x)
         x = self.layer6_conv(x)
@@ -148,4 +147,8 @@ class TorchDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         ip_image_path, gt_image_path = self.image_paths[index]
         ip_image_array, gt_image_array = helper.form_image_arrays(ip_image_path, gt_image_path, self.image_shape)
-        return ip_image_array, gt_image_array
+        # For TorchVision VGG expects tensor elements to be in order [C, H, W] but at this point we have [H, W, C] (?)
+        #ip_image_array = np.moveaxis(ip_image_array, 2, 0)
+        #gt_image_array = np.moveaxis(ip_image_array, 2, 0)
+        # but to_tensor() seems to reorder the axes anyway:
+        return torchvision.transforms.functional.to_tensor(ip_image_array), torchvision.transforms.functional.to_tensor(gt_image_array)
