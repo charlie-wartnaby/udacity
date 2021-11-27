@@ -299,7 +299,7 @@ def run():
     keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
     num_classes = 2 # road or not road
-    framework = "torch"
+    framework = "keras" # "torch"
 
     # Load pretrained VGG16
     if (framework == 'keras'):
@@ -322,7 +322,7 @@ def run():
     #     with [0]=1 for background and [1]=1 for (any) road
 
     data_path = os.path.join(data_dir, 'data_road/training')
-    num_images, image_paths = helper.get_image_paths(data_path, quick_run_test)
+    num_images, _ = helper.get_image_paths(data_path, quick_run_test)
 
     if False:
         # Debug: re-emitting training data as images to check still looks reasonable. Which it does, so

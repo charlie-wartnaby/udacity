@@ -22,11 +22,23 @@ def get_image_paths(data_folder, quick_run_test):
     #       um - urban marked (95/96)
     #       umm - urban multiple marked lanes (96/94)
 
-    image_paths = glob(os.path.join(data_folder, 'image_2', '*.png')) # so raw photos
+    ip_folder = os.path.join(data_folder, 'image_2')     # input images
+    gt_folder = os.path.join(data_folder, 'gt_image_2')  # ground truth images
+
+    image_paths = glob(os.path.join(ip_folder, '*.png')) # so raw photos
 
     num_images = 10 if quick_run_test else len(image_paths)
 
-    return num_images, image_paths
+    # Get corresponding ground truth image filenames (labels)
+    gt_image_paths = []
+    for path in image_paths:
+        ip_filename = os.path.basename(path)
+        gt_filename = re.sub(r'([a-z]+)_(.+)', r'\1_road_\2', ip_filename)
+        gt_path = os.path.join(gt_folder, gt_filename)
+        gt_image_paths.append(gt_path)
+
+    return num_images, list(zip(image_paths, gt_image_paths))
+
 
 def gen_batch_function(data_folder, image_shape, num_classes, batch_size, quick_run_test):
     """
@@ -38,12 +50,6 @@ def gen_batch_function(data_folder, image_shape, num_classes, batch_size, quick_
 
     num_images, image_paths = get_image_paths(data_folder, quick_run_test)
 
-    # CW: Make dictionary to look up road (not lane) ground truth image for each photo
-    #     e.g. umm_000042.png -> umm_road_000042.png
-    label_paths = {
-        re.sub(r'_(lane|road)_', '_', os.path.basename(path)): path
-        for path in glob(os.path.join(data_folder, 'gt_image_2', '*_road_*.png'))}
-
     background_color = np.array([255, 0, 0]) # CW: red
 
     while True: # Keep producing batches of data no matter how many epochs run
@@ -51,8 +57,7 @@ def gen_batch_function(data_folder, image_shape, num_classes, batch_size, quick_
         for batch_i in range(0, num_images, batch_size): # divide full (shuffled) set into batches
             images = []
             gt_images = []
-            for image_file in image_paths[batch_i:batch_i+batch_size]:
-                gt_image_file = label_paths[os.path.basename(image_file)]
+            for image_file, gt_image_file in image_paths[batch_i:batch_i+batch_size]:
 
                 unscaled_image = Image.open(image_file)       # real photo
                 image = np.array(unscaled_image.resize(image_shape))
