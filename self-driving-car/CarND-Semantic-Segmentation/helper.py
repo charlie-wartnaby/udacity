@@ -50,42 +50,48 @@ def gen_batch_function(data_folder, image_shape, num_classes, batch_size, quick_
 
     num_images, image_paths = get_image_paths(data_folder, quick_run_test)
 
-    background_color = np.array([255, 0, 0]) # CW: red
-
     while True: # Keep producing batches of data no matter how many epochs run
         random.shuffle(image_paths)
         for batch_i in range(0, num_images, batch_size): # divide full (shuffled) set into batches
-            images = []
+            ip_images = []
             gt_images = []
-            for image_file, gt_image_file in image_paths[batch_i:batch_i+batch_size]:
-
-                unscaled_image = Image.open(image_file)       # real photo
-                image = np.array(unscaled_image.resize(image_shape))
-                unscaled_gt_image = Image.open(gt_image_file)       # ground truth image
-                gt_image = np.array(unscaled_gt_image.resize(image_shape))
-
-                gt_bg = np.all(gt_image == background_color, axis=2) # CW: for each pixel, is it background (red)?
-                
-                # CW: for each pixel now in 2D array, adding a further array dimension spanning classes -- but
-                #     only have one class, for road/not road, so has size 1 to start with:
-                gt_bg = gt_bg.reshape(*gt_bg.shape, 1) # unpacks existing shape tuple as positional arguments -- adding a dimension of size 1?
-                # ... so now have 3 dimensions for each image (height, width, classes)
-
-                # ... then add element to each class dimension for opposite
-                gt_image = np.concatenate((gt_bg, np.invert(gt_bg)), axis=2) # inverted so 1=non-background
-                # CW: so for each point, now have one-hot array like [0,1] (not background, is road) or
-                #                                                    [1,0] (is background, not road)
-
-                # Convert Booleans to float (actually works OK without doing this anyway)
-                #gt_image = gt_image.astype(np.float32)
-                
-                # TODO -- so network will identify 'other' roads, (black in ground truth images),
-                #         not just 'our' road (magenta in images) -- is that OK/intended?
-
-                images.append(image)
+            for ip_image_file, gt_image_file in image_paths[batch_i:batch_i+batch_size]:
+                ip_image, gt_image = form_image_arrays(ip_image_file, gt_image_file, image_shape)
+                ip_images.append(ip_image)
                 gt_images.append(gt_image)  # so now have 4D for ground truth, i.e. [image, height, width, classes] (or w,h, not sure)
 
-            yield (np.array(images), np.array(gt_images)) # return this batch
+            yield (np.array(ip_images), np.array(gt_images)) # return this batch
+
+
+def form_image_arrays(image_file, gt_image_file, image_shape):
+    """Load input and ground truth images from disk and convert to usable Numpy arrays"""
+
+    background_color = np.array([255, 0, 0]) # CW: red
+                
+    unscaled_image = Image.open(image_file)       # real photo
+    image = np.array(unscaled_image.resize(image_shape))
+    unscaled_gt_image = Image.open(gt_image_file)       # ground truth image
+    gt_image = np.array(unscaled_gt_image.resize(image_shape))
+
+    gt_bg = np.all(gt_image == background_color, axis=2) # CW: for each pixel, is it background (red)?
+    
+    # CW: for each pixel now in 2D array, adding a further array dimension spanning classes -- but
+    #     only have one class, for road/not road, so has size 1 to start with:
+    gt_bg = gt_bg.reshape(*gt_bg.shape, 1) # unpacks existing shape tuple as positional arguments -- adding a dimension of size 1?
+    # ... so now have 3 dimensions for each image (height, width, classes)
+
+    # ... then add element to each class dimension for opposite
+    gt_image = np.concatenate((gt_bg, np.invert(gt_bg)), axis=2) # inverted so 1=non-background
+    # CW: so for each point, now have one-hot array like [0,1] (not background, is road) or
+    #                                                    [1,0] (is background, not road)
+
+    # Convert Booleans to float (actually works OK without doing this anyway)
+    #gt_image = gt_image.astype(np.float32)
+    
+    # TODO -- so network will identify 'other' roads, (black in ground truth images),
+    #         not just 'our' road (magenta in images) -- is that OK/intended?
+
+    return image, gt_image
 
 
 def gen_test_output(framework, model, data_folder, image_shape):
