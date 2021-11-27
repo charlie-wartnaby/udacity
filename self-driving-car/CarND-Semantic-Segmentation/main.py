@@ -5,6 +5,7 @@
 import os.path
 import tensorflow as tf
 import torch
+import torchvision.models
 import numpy as np
 import time
 import datetime
@@ -300,6 +301,8 @@ def run():
     learning_rate = 0.001
     num_classes = 2 # road or not road
     framework = "torch"
+    step_size  = 50
+    gamma      = 0.5
 
     # Load pretrained VGG16
     if (framework == 'keras'):
@@ -351,9 +354,12 @@ def run():
         dataset = torch_vgg.TorchDataset(data_path, image_shape, quick_run_test)
 
         # And DataLoader for preprocessing
-        # https://discuss.pytorch.org/t/what-do-tensordataset-and-dataloader-do/107017
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
         # Then Torch style training
-        pass
+        criterion = torch.nn.BCEWithLogitsLoss()
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
     helper.save_inference_samples(framework, runs_dir, data_dir, model, image_shape, quick_run_test)
 

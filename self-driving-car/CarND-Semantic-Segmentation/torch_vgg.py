@@ -14,7 +14,12 @@ import helper
 # https://github.com/pochih/FCN-pytorch/blob/master/python/fcn.py
 class VggFcn(torchvision.models.VGG):
     def __init__(self, keep_prob=0.5, num_classes=2):
-        self = torchvision.models.vgg16(pretrained=True) # can I do this?
+        kwargs = {}
+        kwargs["init_weights"] = False # use pretrained
+        kwargs["num_classes"] = num_classes
+        super().__init__(torchvision.models.vgg.make_layers(torchvision.models.vgg.cfgs["D"]), **kwargs)
+
+        #self = torchvision.models.vgg16(pretrained=True) # can I do this?
 
         # The library model is divided into these modules as class attributes:
         #   self.features -- encoder
@@ -25,6 +30,9 @@ class VggFcn(torchvision.models.VGG):
         del self.avgpool
         del self.classifier
 
+        # Is this the right way to freeze pretrained weights of encoder part?
+        for param in self.parameters():
+            param.requires_grad = False
 
         # Construct new layers for decoder part in line with original project here
         drop_prob = 1.0 - keep_prob
@@ -141,4 +149,3 @@ class TorchDataset(torch.utils.data.Dataset):
         ip_image_path, gt_image_path = self.image_paths[index]
         ip_image_array, gt_image_array = helper.form_image_arrays(ip_image_path, gt_image_path, self.image_shape)
         return ip_image_array, gt_image_array
-        
