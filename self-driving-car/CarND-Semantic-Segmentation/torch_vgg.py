@@ -4,6 +4,9 @@
 import torch
 import torchvision.models
 
+import helper
+
+
 # Subclass Torchvision library model to build own model with required structure
 # Source code here:
 # https://pytorch.org/vision/stable/_modules/torchvision/models/vgg.html
@@ -124,3 +127,18 @@ class VggFcn(torchvision.models.VGG):
         x = self.layer10_convt_activation(x) # output predictions
 
         return x
+
+
+class TorchDataset(torch.utils.data.Dataset):
+    def __init__(self, data_folder, image_shape, quick_run_test):
+        self.num_images, self.image_paths = helper.get_image_paths(data_folder, quick_run_test)
+        self.image_shape = image_shape
+
+    def __len__(self):
+        return self.num_images
+
+    def __getitem__(self, index):
+        ip_image_path, gt_image_path = self.image_paths[index]
+        ip_image_array, gt_image_array = helper.form_image_arrays(ip_image_path, gt_image_path, self.image_shape)
+        return ip_image_array, gt_image_array
+        

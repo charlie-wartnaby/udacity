@@ -299,7 +299,7 @@ def run():
     keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
     num_classes = 2 # road or not road
-    framework = "keras" # "torch"
+    framework = "torch"
 
     # Load pretrained VGG16
     if (framework == 'keras'):
@@ -347,9 +347,10 @@ def run():
                 steps_per_epoch = num_images / batch_size,
                 epochs=epochs)
     else:
-        # Need Torch DataSet/TensorDaatSet to populate Torch tensors (can I reuse existing batch function
-        # to load dynamically into Torch tensors?)
-        # And DataLoader for preprocessing? 
+        # Create dataset object which gets array data from disk files
+        dataset = torch_vgg.TorchDataset(data_path, image_shape, quick_run_test)
+
+        # And DataLoader for preprocessing
         # https://discuss.pytorch.org/t/what-do-tensordataset-and-dataloader-do/107017
         # Then Torch style training
         pass
