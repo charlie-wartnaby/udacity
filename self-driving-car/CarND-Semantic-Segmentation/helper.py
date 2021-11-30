@@ -92,8 +92,9 @@ def form_image_arrays(image_file, gt_image_file, image_shape):
     # CW: so for each point, now have one-hot array like [0,1] (not background, is road) or
     #                                                    [1,0] (is background, not road)
 
-    # Convert Booleans to float (actually works OK without doing this anyway)
-    #gt_image = gt_image.astype(np.float32)
+    # Convert Booleans to float (actually Keras works OK without doing this anyway,
+    # Torch loss function does not)
+    gt_image = gt_image.astype(np.float32)
     
     # TODO -- so network will identify 'other' roads, (black in ground truth images),
     #         not just 'our' road (magenta in images) -- is that OK/intended?
@@ -121,6 +122,7 @@ def gen_test_output(framework, model, data_folder, image_shape):
         if (framework == 'keras'):
             softmax_predictions = model.predict(np.array(images))
         else:
+            # TODO generate predictions using Torch model
             pass
         
         softmax_prediction = softmax_predictions[0]

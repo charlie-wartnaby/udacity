@@ -115,7 +115,8 @@ class VggFcn(torchvision.models.VGG):
         # skip layers or output to (layers don't have names, sadly): 
         #  16 MaxPool2d layer3_out
         #  23 MaxPool2d layer4_out
-        # Is there a better way to access specific modules?
+        # Is there a better way to access specific modules? Found layer indices
+        # by printing stock model
         for i, module in enumerate(self.features): # if iterate over features.modules get whole thing as el 0
             x = module(x)
             if (i == 16):
@@ -133,9 +134,9 @@ class VggFcn(torchvision.models.VGG):
         x = self.layer7_conv(x)
         x = self.layer7_conv_activation(x)
         x = self.layer7_dropout(x)
-        x = self.layer8(x) # TODO get correct size here
+        x = self.layer8(x)
         x = self.layer8_convt_activation(x)
-        x = x + layer4 # skip layer addition TODO doesn't work yet
+        x = x + layer4 # skip layer addition
         x = self.layer9(x)
         x = self.layer9_convt_activation(x)
         x = x + layer3 # skip layer addition

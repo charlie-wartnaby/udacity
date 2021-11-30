@@ -384,7 +384,7 @@ def run():
                 optimizer.step()
 
                 if iter % 10 == 0:
-                    print("epoch{}, iter{}, loss: {}".format(epoch, iter, loss.data[0]))
+                    print("epoch{}, iter{}, loss: {}".format(epoch, iter, loss.data))
             
             print("Finish epoch {}, time elapsed {}".format(epoch, time.time() - ts))
 
