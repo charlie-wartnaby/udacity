@@ -114,10 +114,16 @@ class VggFcn(torchvision.models.VGG):
         # Is there a better way to access specific modules?
         for i, module in enumerate(self.features): # if iterate over features.modules get whole thing as el 0
             x = module(x)
-            if (i == 16) : layer3_out = x
-            if (i == 23) : layer4_out = x
+            if (i == 16):
+                layer3 = x
+                layer3 = self.layer3_squashed(layer3)
+                layer3 = self.layer3_squashed_activation(layer3) # now n-batch * 2 chans * 28 * 28
+            if (i == 23):
+                layer4 = x
+                layer4 = self.layer4_squashed(layer4)
+                layer4 = self.layer4_squashed_activation(layer4) # now n-batch * 2 chans * 14 * 14
 
-        x = self.layer6_conv(x)
+        x = self.layer6_conv(x) # TODO incorrectly gives us [n, 4096, 1, 1] output currently
         x = self.layer6_conv_activation(x)
         x = self.layer6_dropout(x)
         x = self.layer7_conv(x)
@@ -125,10 +131,10 @@ class VggFcn(torchvision.models.VGG):
         x = self.layer7_dropout(x)
         x = self.layer8(x)
         x = self.layer8_convt_activation(x)
-        x = x + layer4_out # skip layer addition TODO doesn't work yet
+        x = x + layer4 # skip layer addition TODO doesn't work yet
         x = self.layer9(x)
         x = self.layer9_convt_activation(x)
-        x = x + layer3_out # skip layer addition
+        x = x + layer3 # skip layer addition
         x = self.layer10(x)
         x = self.layer10_convt_activation(x) # output predictions
 
