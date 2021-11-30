@@ -57,7 +57,13 @@ def gen_batch_function(data_folder, image_shape, num_classes, batch_size, quick_
             gt_images = []
             for ip_image_file, gt_image_file in image_paths[batch_i:batch_i+batch_size]:
                 ip_image, gt_image = form_image_arrays(ip_image_file, gt_image_file, image_shape)
-                ip_images.append(ip_image)
+
+                # TODO never did normalisation here! This should do roughly, untested:
+                ip_image = ip_image.astype(np.float32)
+                ip_image /= 255
+                ip_image -= 0.5
+
+                ip_images.append(ip_image) 
                 gt_images.append(gt_image)  # so now have 4D for ground truth, i.e. [image, height, width, classes] (or w,h, not sure)
 
             yield (np.array(ip_images), np.array(gt_images)) # return this batch
@@ -70,6 +76,7 @@ def form_image_arrays(image_file, gt_image_file, image_shape):
                 
     unscaled_image = Image.open(image_file)       # real photo
     image = np.array(unscaled_image.resize(image_shape))
+    
     unscaled_gt_image = Image.open(gt_image_file)       # ground truth image
     gt_image = np.array(unscaled_gt_image.resize(image_shape))
 

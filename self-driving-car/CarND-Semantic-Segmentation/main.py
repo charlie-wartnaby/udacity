@@ -300,7 +300,7 @@ def run():
     keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
     num_classes = 2 # road or not road
-    framework = "torch"
+    framework = "keras"
     step_size  = 50
     gamma      = 0.5
 
@@ -311,6 +311,9 @@ def run():
         model = keras_add_layers(model, num_classes, keep_prob) # get final layer out
     else:
         model = torch_vgg.VggFcn(keep_prob=keep_prob, num_classes=num_classes)
+        print("\nTorch VGG after classifier removal and decoder additions:")
+        print(model)
+
 
     # Prepare model to run
     if (framework == 'keras'):

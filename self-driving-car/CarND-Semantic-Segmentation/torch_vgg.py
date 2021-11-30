@@ -147,8 +147,15 @@ class TorchDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         ip_image_path, gt_image_path = self.image_paths[index]
         ip_image_array, gt_image_array = helper.form_image_arrays(ip_image_path, gt_image_path, self.image_shape)
+
         # For TorchVision VGG expects tensor elements to be in order [C, H, W] but at this point we have [H, W, C] (?)
         #ip_image_array = np.moveaxis(ip_image_array, 2, 0)
         #gt_image_array = np.moveaxis(ip_image_array, 2, 0)
         # but to_tensor() seems to reorder the axes anyway:
-        return torchvision.transforms.functional.to_tensor(ip_image_array), torchvision.transforms.functional.to_tensor(gt_image_array)
+        ip_image_tensor = torchvision.transforms.functional.to_tensor(ip_image_array)
+        gt_image_tensor = torchvision.transforms.functional.to_tensor(gt_image_array)
+
+        # Mean and stdev for normalisation repeated in a few places on the web:
+        norm_ip_image_tensor = torchvision.transforms.functional.normalize(ip_image_tensor, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
+        return norm_ip_image_tensor, gt_image_tensor
