@@ -300,7 +300,7 @@ def run():
     keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
     num_classes = 2 # road or not road
-    framework = "keras"
+    framework = "torch"
     step_size  = 50
     gamma      = 0.5
 
