@@ -41,6 +41,7 @@ class VggFcn(torchvision.models.VGG):
         self.layer6_conv = torch.nn.Conv2d(512,        # input channels
                                     4096,       # output channels
                                     7,          # 7x7 patch from original Udacity model
+                                    padding='same',
                                     stride=(1,1))
 
         self.layer6_conv_activation = torch.nn.ReLU()
@@ -64,8 +65,9 @@ class VggFcn(torchvision.models.VGG):
         # Or keep more depth in as we work upwards? For now doing it all in one hit.
         self.layer8 = torch.nn.ConvTranspose2d(4096, # in_channels
                                                num_classes, #out_channels filters, 
-                                                4, # kernel size taken from classroom example, might experiment
-                                                stride=2) # stride causes upsampling
+                                               4, # kernel size taken from classroom example, might experiment
+                                               padding=(0,0),
+                                               stride=2) # stride causes upsampling
 
         self.layer8_convt_activation = torch.nn.ReLU()
 
@@ -78,9 +80,10 @@ class VggFcn(torchvision.models.VGG):
 
         # upsample by 2
         self.layer9 = torch.nn.ConvTranspose2d(num_classes,
-                                                num_classes, # filters
-                                                    4, # kernel size taken from classroom example
-                                                    stride=(2,2)) # stride causes upsampling
+                                               num_classes, # filters
+                                               4, # kernel size taken from classroom example
+                                               padding=(0,0),
+                                               stride=(2,2)) # stride causes upsampling
 
         self.layer9_convt_activation = torch.nn.ReLU()
 
@@ -94,9 +97,10 @@ class VggFcn(torchvision.models.VGG):
 
         # upsample by 8 to get back to original image size
         self.layer10 = torch.nn.ConvTranspose2d(num_classes,
-                                                   num_classes,
-                                                    32, # Finding quite large kernel works nicely
-                                                    stride=(8,8)) # stride causes upsampling
+                                                num_classes,
+                                                32, # Finding quite large kernel works nicely
+                                                padding=(0,0),
+                                                stride=(8,8)) # stride causes upsampling
         
         self.layer10_convt_activation = torch.nn.ReLU()
 
@@ -123,13 +127,13 @@ class VggFcn(torchvision.models.VGG):
                 layer4 = self.layer4_squashed(layer4)
                 layer4 = self.layer4_squashed_activation(layer4) # now n-batch * 2 chans * 14 * 14
 
-        x = self.layer6_conv(x) # TODO incorrectly gives us [n, 4096, 1, 1] output currently
+        x = self.layer6_conv(x)
         x = self.layer6_conv_activation(x)
         x = self.layer6_dropout(x)
         x = self.layer7_conv(x)
         x = self.layer7_conv_activation(x)
         x = self.layer7_dropout(x)
-        x = self.layer8(x)
+        x = self.layer8(x) # TODO get correct size here
         x = self.layer8_convt_activation(x)
         x = x + layer4 # skip layer addition TODO doesn't work yet
         x = self.layer9(x)
