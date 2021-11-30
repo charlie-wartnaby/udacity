@@ -66,7 +66,7 @@ class VggFcn(torchvision.models.VGG):
         self.layer8 = torch.nn.ConvTranspose2d(4096, # in_channels
                                                num_classes, #out_channels filters, 
                                                4, # kernel size taken from classroom example, might experiment
-                                               padding=(0,0),
+                                               padding=(1,1), # to get expected output size
                                                stride=2) # stride causes upsampling
 
         self.layer8_convt_activation = torch.nn.ReLU()
@@ -82,7 +82,7 @@ class VggFcn(torchvision.models.VGG):
         self.layer9 = torch.nn.ConvTranspose2d(num_classes,
                                                num_classes, # filters
                                                4, # kernel size taken from classroom example
-                                               padding=(0,0),
+                                               padding=(1,1), # to get expected output size
                                                stride=(2,2)) # stride causes upsampling
 
         self.layer9_convt_activation = torch.nn.ReLU()
@@ -99,7 +99,7 @@ class VggFcn(torchvision.models.VGG):
         self.layer10 = torch.nn.ConvTranspose2d(num_classes,
                                                 num_classes,
                                                 32, # Finding quite large kernel works nicely
-                                                padding=(0,0),
+                                                padding=(12,12), # by trial and error TODO should I use any output_padding?
                                                 stride=(8,8)) # stride causes upsampling
         
         self.layer10_convt_activation = torch.nn.ReLU()
