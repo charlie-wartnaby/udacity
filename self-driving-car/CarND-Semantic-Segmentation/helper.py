@@ -102,13 +102,9 @@ def form_image_arrays(image_file, gt_image_file, image_shape):
     return image, gt_image
 
 
-def gen_test_output(framework, model, data_folder, image_shape):
+def gen_test_output_keras(model, data_folder, image_shape):
     """
     Generate test output using the test images
-    :param sess: TF session
-    :param logits: TF Tensor for the logits
-    :param keep_prob: TF Placeholder for the dropout keep robability
-    :param image_pl: TF Placeholder for the image placeholder
     :param data_folder: Path to the folder that contains the datasets
     :param image_shape: Tuple - Shape of image
     :return: Output for for each test image
@@ -119,23 +115,9 @@ def gen_test_output(framework, model, data_folder, image_shape):
         scaled_image = unscaled_image.resize(image_shape)
         images.append(np.array(scaled_image))
 
-        if (framework == 'keras'):
-            softmax_predictions = model.predict(np.array(images))
-        else:
-            # TODO generate predictions using Torch model
-            pass
-        
-        softmax_prediction = softmax_predictions[0]
-        predicted_class0 = softmax_prediction[:,:,0]
-        segmentation_flag = (predicted_class0 < 0.5)
-        segmentation_array = np.reshape(segmentation_flag, (image_shape[0], image_shape[1], 1))
-        mask = np.dot(segmentation_array, np.array([[0, 255, 0, 127]], dtype=np.uint8))
-        mask = Image.fromarray(mask, mode="RGBA")
-        rescaled_mask = mask.resize(unscaled_image.size)
-        street_im = unscaled_image
-        street_im.paste(rescaled_mask, box=None, mask=rescaled_mask)
+        softmax_predictions = model.predict(np.array(images))
 
-        yield os.path.basename(image_file), street_im
+        yield os.path.basename(image_file), unscaled_image, softmax_predictions
 
 
 def save_inference_samples(framework, runs_dir, data_dir, model, image_shape, quick_run_test):
@@ -147,11 +129,26 @@ def save_inference_samples(framework, runs_dir, data_dir, model, image_shape, qu
 
     # Run NN on test images and save them to HD
     print('Training Finished. Saving test images to: {}'.format(output_dir))
-    image_outputs = gen_test_output(framework,
-        model, os.path.join(data_dir, 'data_road/testing'), image_shape)
+    input_folder = os.path.join(data_dir, 'data_road/testing')
+    if framework == "keras":
+        inference_outputs = gen_test_output_keras(model,
+                                                     input_folder, image_shape)
+    else:
+        # TODO Torch inference
+        pass
+
     count = 0
-    for name, image in image_outputs:
-        image.save(os.path.join(output_dir, name))
+    for name, unscaled_image, softmax_predictions in inference_outputs:
+        softmax_prediction = softmax_predictions[0]
+        predicted_class0 = softmax_prediction[:,:,0]
+        segmentation_flag = (predicted_class0 < 0.5)
+        segmentation_array = np.reshape(segmentation_flag, (image_shape[0], image_shape[1], 1))
+        mask = np.dot(segmentation_array, np.array([[0, 255, 0, 127]], dtype=np.uint8))
+        mask = Image.fromarray(mask, mode="RGBA")
+        rescaled_mask = mask.resize(unscaled_image.size)
+        street_im = unscaled_image
+        street_im.paste(rescaled_mask, box=None, mask=rescaled_mask)
+        street_im.save(os.path.join(output_dir, name))
         count += 1
         if quick_run_test and count >= 5:
             break
