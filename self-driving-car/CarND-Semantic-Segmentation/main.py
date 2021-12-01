@@ -5,10 +5,8 @@
 import os.path
 import tensorflow as tf
 import torch
-import torchvision.models
 import numpy as np
 import time
-import datetime
 import warnings
 from distutils.version import LooseVersion
 from PIL import Image
@@ -300,7 +298,7 @@ def run():
     keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
     num_classes = 2 # road or not road
-    framework = "torch"
+    framework = "torch" # "keras" or "torch"
     step_size  = 50
     gamma      = 0.5
 
@@ -322,18 +320,19 @@ def run():
         model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
     else:
         use_gpu = torch.cuda.is_available()
+        model.train() # Sets mode for dropout layers etc
 
     # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
     # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot
     #     with [0]=1 for background and [1]=1 for (any) road
 
     data_path = os.path.join(data_dir, 'data_road/training')
-    num_images, _ = helper.get_image_paths(data_path, quick_run_test)
+    image_paths = helper.get_image_paths(data_path, quick_run_test, True)
 
     if False:
         # Debug: re-emitting training data as images to check still looks reasonable. Which it does, so
         # input processing doesn't seem to be the problem
-        for i in range(num_images):
+        for i in range(len(image_paths)):
             x_debug_fn = helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test)
             x_debug_data = next(x_debug_fn)
             image_array = x_debug_data[0][0]
@@ -348,13 +347,14 @@ def run():
 
 
     if (framework == 'keras'):
-        model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
+        model.fit(x=helper.gen_batch_function(image_paths,
+                                              image_shape, num_classes, batch_size, quick_run_test),
                 batch_size=batch_size,
-                steps_per_epoch = num_images / batch_size,
+                steps_per_epoch = len(image_paths) / batch_size,
                 epochs=epochs)
     else:
         # Create dataset object which gets array data from disk files
-        dataset = torch_vgg.TorchDataset(data_path, image_shape, quick_run_test)
+        dataset = torch_vgg.TorchDataset(image_paths, image_shape, True)
 
         # And DataLoader for preprocessing
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -376,7 +376,8 @@ def run():
                     inputs = torch.autograd.Variable(batch[0].cuda()) # Source example indexed batch as dict though, 'X' & 'Y'
                     labels = torch.autograd.Variable(batch[1].cuda())
                 else:
-                    inputs, labels = torch.autograd.Variable(batch[0]), torch.autograd.Variable(batch[1])
+                    inputs = torch.autograd.Variable(batch[0])
+                    labels = torch.autograd.Variable(batch[1])
 
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)

@@ -147,15 +147,16 @@ class VggFcn(torchvision.models.VGG):
 
 
 class TorchDataset(torch.utils.data.Dataset):
-    def __init__(self, data_folder, image_shape, quick_run_test):
-        self.num_images, self.image_paths = helper.get_image_paths(data_folder, quick_run_test)
+    def __init__(self, image_paths, image_shape, gt_available):
+        self.image_paths = image_paths
         self.image_shape = image_shape
+        self.gt_available = gt_available
 
     def __len__(self):
-        return self.num_images
+        return len(self.image_paths)
 
     def __getitem__(self, index):
-        ip_image_path, gt_image_path = self.image_paths[index]
+        ip_image_path, gt_image_path = self.image_paths[index] # ground truth None for testing
         ip_image_array, gt_image_array = helper.form_image_arrays(ip_image_path, gt_image_path, self.image_shape)
 
         # For TorchVision VGG expects tensor elements to be in order [C, H, W] but at this point we have [H, W, C] (?)
@@ -163,9 +164,15 @@ class TorchDataset(torch.utils.data.Dataset):
         #gt_image_array = np.moveaxis(ip_image_array, 2, 0)
         # but to_tensor() seems to reorder the axes anyway:
         ip_image_tensor = torchvision.transforms.functional.to_tensor(ip_image_array)
-        gt_image_tensor = torchvision.transforms.functional.to_tensor(gt_image_array)
+        if self.gt_available:
+            gt_image_tensor = torchvision.transforms.functional.to_tensor(gt_image_array)
+        else:
+            gt_image_tensor = None
 
         # Mean and stdev for normalisation repeated in a few places on the web:
         norm_ip_image_tensor = torchvision.transforms.functional.normalize(ip_image_tensor, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
-        return norm_ip_image_tensor, gt_image_tensor
+        if self.gt_available:
+            return norm_ip_image_tensor, gt_image_tensor
+        else:
+            return norm_ip_image_tensor
