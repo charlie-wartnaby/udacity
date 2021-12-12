@@ -2,9 +2,16 @@
 #
 ############################################################################### 
 
+
+framework = "torch" # "keras" or "torch"
+
 import os.path
-import tensorflow as tf
-import torch
+if framework == "keras":
+    import tensorflow as tf
+else:
+    import torch
+    import torch_vgg
+
 import numpy as np
 import time
 import warnings
@@ -13,29 +20,30 @@ from PIL import Image
 
 import helper
 import project_tests as tests
-import torch_vgg
 
-# Check TensorFlow Version
-assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
-print('TensorFlow Version: {}'.format(tf.__version__))
+if framework == "keras":
+    # Problem on new PC: first Tensorflow calls take forever...
+    # Check TensorFlow Version
+    assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
+    print('TensorFlow Version: {}'.format(tf.__version__))
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        # Memory growth must be set before GPUs have been initialized
-        print(e)
-        
-# Check for a GPU
-if not tf.test.gpu_device_name():
-    warnings.warn('No GPU found. Please use a GPU to train your neural network.')
-else:
-    print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+            
+    # Check for a GPU
+    if not tf.test.gpu_device_name():
+        warnings.warn('No GPU found. Please use a GPU to train your neural network.')
+    else:
+        print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
 
 def keras_load_vgg():
@@ -288,7 +296,7 @@ def run():
 
     data_dir = './data'
     runs_dir = './runs'
-    tests.test_for_kitti_dataset(data_dir)
+    # tests.test_for_kitti_dataset(data_dir)
 
     quick_run_test = True # For debug
 
@@ -298,7 +306,6 @@ def run():
     keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
     learning_rate = 0.001
     num_classes = 2 # road or not road
-    framework = "torch" # "keras" or "torch"
     step_size  = 50
     gamma      = 0.5
 

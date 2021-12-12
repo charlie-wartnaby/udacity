@@ -1,3 +1,5 @@
+from main import framework
+
 import re
 import random
 import numpy as np
@@ -5,13 +7,14 @@ import os.path
 import shutil
 import zipfile
 import time
-import tensorflow as tf
-from tensorflow import keras
-import torch
+if framework == "keras":
+    import tensorflow as tf
+    from tensorflow import keras
+else:
+    import torch
 from glob import glob
 from PIL import Image
 from urllib.request import urlretrieve
-from tqdm import tqdm
 
 import torch_vgg
 
