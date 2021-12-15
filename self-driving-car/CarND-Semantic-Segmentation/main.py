@@ -328,6 +328,9 @@ def run():
     else:
         use_gpu = torch.cuda.is_available()
         model.train() # Sets mode for dropout layers etc
+        if use_gpu:
+            device = torch.device("cuda:0")
+            model.to(device)
 
     # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
     # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot
