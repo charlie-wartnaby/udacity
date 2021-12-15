@@ -156,9 +156,9 @@ def gen_test_output_torch(model, input_image_paths, image_shape):
 
     for iter, batch in enumerate(dataloader):
         if use_gpu:
-            inputs = torch.autograd.Variable(batch[0].cuda()) # Source example indexed batch as dict though, 'X' & 'Y'
+            inputs = torch.autograd.Variable(batch.cuda()) # Source example indexed batch as dict though, 'X' & 'Y'
         else:
-            inputs = torch.autograd.Variable(batch[0])
+            inputs = torch.autograd.Variable(batch)
 
         softmax_predictions = model(inputs)
 
@@ -182,21 +182,27 @@ def save_inference_samples(framework, runs_dir, data_dir, model, image_shape, qu
     else:
         inference_outputs = gen_test_output_torch(model,
                                                   image_paths, image_shape)
-        pass
+        use_gpu = torch.cuda.is_available()
 
     count = 0
     for ip_image_file, softmax_predictions in zip(image_paths, inference_outputs):
-        unscaled_image = Image.open(ip_image_file)
+        unscaled_image = Image.open(ip_image_file[0])
         softmax_prediction = softmax_predictions[0]
-        predicted_class0 = softmax_prediction[:,:,0]
+        if framework == "keras":
+            predicted_class0 = softmax_prediction[:,:,0]
+        else:
+            # Get different ordering
+            predicted_class0 = softmax_prediction[0,:,:]
         segmentation_flag = (predicted_class0 < 0.5)
+        if framework == "torch" and use_gpu:
+            segmentation_flag = segmentation_flag.cpu()
         segmentation_array = np.reshape(segmentation_flag, (image_shape[0], image_shape[1], 1))
         mask = np.dot(segmentation_array, np.array([[0, 255, 0, 127]], dtype=np.uint8))
         mask = Image.fromarray(mask, mode="RGBA")
         rescaled_mask = mask.resize(unscaled_image.size)
         street_im = unscaled_image
         street_im.paste(rescaled_mask, box=None, mask=rescaled_mask)
-        filename = os.path.basename(ip_image_file)
+        filename = os.path.basename(ip_image_file[0])
         street_im.save(os.path.join(output_dir, filename))
         count += 1
         if quick_run_test and count >= 5:
