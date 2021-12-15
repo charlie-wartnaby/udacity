@@ -298,7 +298,7 @@ def run():
     runs_dir = './runs'
     # tests.test_for_kitti_dataset(data_dir)
 
-    quick_run_test = True # For debug
+    quick_run_test = False # For debug
 
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
