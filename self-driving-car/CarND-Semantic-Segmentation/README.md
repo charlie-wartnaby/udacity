@@ -3,7 +3,8 @@
 ## History
 
 Warning: this has now had a rewrite since I originally submitted it for my Udacity
-course, to use the latest version of TensorFlow and Keras. See history for original version.
+course, to use the latest version of TensorFlow and Keras and now PyTorch
+as an alternative. See history for original version.
 
 ## Original Details
 

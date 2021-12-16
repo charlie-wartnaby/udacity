@@ -2,52 +2,55 @@
 #
 ############################################################################### 
 
+
+framework = "torch" # "keras" or "torch"
+
 import os.path
-import tensorflow as tf
-import helper
+if framework == "keras":
+    import tensorflow as tf
+else:
+    import torch
+    import torch_vgg
+
 import numpy as np
 import time
-import datetime
 import warnings
 from distutils.version import LooseVersion
 from PIL import Image
+
+import helper
 import project_tests as tests
 
+if framework == "keras":
+    # Problem on new PC: first Tensorflow calls take forever...
+    # Check TensorFlow Version
+    assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
+    print('TensorFlow Version: {}'.format(tf.__version__))
 
-# Check TensorFlow Version
-assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
-print('TensorFlow Version: {}'.format(tf.__version__))
-
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        # Memory growth must be set before GPUs have been initialized
-        print(e)
-        
-# Check for a GPU
-if not tf.test.gpu_device_name():
-    warnings.warn('No GPU found. Please use a GPU to train your neural network.')
-else:
-    print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+            
+    # Check for a GPU
+    if not tf.test.gpu_device_name():
+        warnings.warn('No GPU found. Please use a GPU to train your neural network.')
+    else:
+        print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
 
-def load_vgg(keep_prob):
+def keras_load_vgg():
     """
-    Load Pretrained VGG Model into TensorFlow.
-    :param sess: TensorFlow Session
-    :param vgg_path: Path to vgg folder, containing "variables/" and "saved_model.pb"
-    :return: Tuple of Tensors from VGG model (image_input, keep_prob, layer3_out, layer4_out, layer7_out)
+    Load Pretrained VGG Model
 
 https://github.com/Natsu6767/VGG16-Tensorflow/blob/master/vgg16.py shows KEEP_PROB dropout layer after fc1 and fc2
-
-The Keras standard VGG16 doesn't have the dropout layers used by this project in the original
-model provided. But see below for their insertion.
 
 Output from model.summary() for tf.keras.applications.VGG16() to figure out new layer names:
  Layer (type)                 Output Shape              Param #     Old project name/comments
@@ -70,9 +73,9 @@ block4_pool (MaxPooling2D)   (None, 14, 14, 512)       0         'layer4_out:0' 
 block5_conv1 (Conv2D)        (None, 14, 14, 512)       2359808
 block5_conv2 (Conv2D)        (None, 14, 14, 512)       2359808
 block5_conv3 (Conv2D)        (None, 14, 14, 512)       2359808
-block5_pool (MaxPooling2D)   (None, 7, 7, 512)         0          'layer7_out:0'  # Walkthrough: pool5 layer
-flatten (Flatten)            (None, 25088)             0
-fc1 (Dense)                  (None, 4096)              102764544  Note: no dropout layer in this library version
+block5_pool (MaxPooling2D)   (None, 7, 7, 512)         0                        # Walkthrough: pool5 layer
+flatten (Flatten)            (None, 25088)             0     # Amorphous classifier from now on, no longer image shaped like course original
+fc1 (Dense)                  (None, 4096)              102764544  Note: no dropout layers in this library version either
 fc2 (Dense)                  (None, 4096)              16781312  
 predictions (Dense)          (None, 1000)              4097000
  """
@@ -97,26 +100,14 @@ predictions (Dense)          (None, 1000)              4097000
     # with the custom added layers still being trainable. Odd.
     library_model.trainable = False 
 
-
-    # https://stackoverflow.com/questions/42475381/add-dropout-layers-between-pretrained-dense-layers-in-keras
-    # Store the fully connected layers
-    fc1         = library_model.get_layer("fc1")
-    fc2         = library_model.get_layer("fc2")
-    predictions = library_model.get_layer("predictions")
-    # Create the dropout layers
-    drop_prob = 1.0 - keep_prob
-    dropout1 = tf.keras.layers.Dropout(drop_prob, name="dropout1")
-    dropout2 = tf.keras.layers.Dropout(drop_prob, name="dropout2")
-    # Reconnect the layers
-    x = dropout1(fc1.output)
-    x = fc2(x)
-    x = dropout2(x)
-    predictors = predictions(x)
-    # Create a new model
-    mod_model = tf.keras.Model(inputs=library_model.input, outputs=predictors)
+    # Remove classifier layers which we'll replace with (small) image-shaped layers
+    # like version of VGG16 originally used for this course
+    block5_pool         = library_model.get_layer("block5_pool")
+    # Create a new model skipping the classifier part of the library original
+    mod_model = tf.keras.Model(inputs=library_model.input, outputs=block5_pool.output)
 
     # Display its architecture
-    print("VGG model after inserting dropout layers:")
+    print("VGG model after removing classifier:")
     mod_model.summary()
 
     return mod_model
@@ -124,15 +115,9 @@ predictions (Dense)          (None, 1000)              4097000
 # Not yet updated for v2 changes:
 #tests.test_load_vgg(load_vgg, tf)
 
-
-def add_layers(model, num_classes):
+def keras_add_layers(model, num_classes, keep_prob):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
-    :param vgg_layer3_out: TF Tensor for VGG Layer 3 output
-    :param vgg_layer4_out: TF Tensor for VGG Layer 4 output
-    :param vgg_layer7_out: TF Tensor for VGG Layer 7 output
-    :param num_classes: Number of classes to classify
-    :return: The Tensor for the last layer of output
     """
     # DONE: Implement function
 
@@ -149,7 +134,7 @@ def add_layers(model, num_classes):
     #                          padding='same',
     #                          kernel_regularizer = tf.contrib.layers.l2_regularizer(1e-3))
 
-    # Using Tensorboard to visualise the structure of the VGG model provided, and
+    # Using Tensorboard to visualise the structure of the Udacity VGG model provided, and
     # tf.trainable_variables() to list the dimensions and sizes of the weights and biases
     # for each layer, I arrive at this summary of what shape the output of each layer
     # is (knowing that we started with a 160 height x 576 width x 3 colour channel image).
@@ -186,7 +171,44 @@ def add_layers(model, num_classes):
 
     layer3_out  = model.get_layer('block3_pool').output
     layer4_out  = model.get_layer('block4_pool').output
-    layer7_out  = model.get_layer('block5_pool').output
+
+    # Problem here: TF2 library model doesn't have image-shaped layers 6 & 7 like
+    # model provided originally with TF1, but instead is flattened amporphous classifier.
+    # So we're working with more 'raw' layer as input. TODO should add back
+    # two conv2d layers before this to be like the original
+    drop_prob = 1.0 - keep_prob
+
+    layer5  = model.get_layer('block5_pool')
+
+    layer6_conv = tf.keras.layers.Conv2D(4096,
+                                         7,          # 7x7 patch from original Udacity model
+                                         strides=(1,1),
+                                         padding='same',
+                                         kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)), # guess same as others
+                                         name='layer6_conv')
+
+    layer6_dropout = tf.keras.layers.Dropout(drop_prob, name="layer6_dropout")
+
+    layer7_conv = tf.keras.layers.Conv2D(4096,
+                                         1,         # 1x1 patch from original Udacity model
+                                         strides=(1,1),
+                                         padding='same',
+                                         kernel_regularizer = tf.keras.regularizers.l2(0.5 * (1e-3)), # guess
+                                         name='layer7_conv')
+
+    layer7_dropout = tf.keras.layers.Dropout(drop_prob, name="layer7_dropout")
+
+    # Connect up the new layers
+    x = layer6_conv(layer5.output)
+    x = layer6_dropout(x)
+    x = layer7_conv(x)
+    layer7 = layer7_dropout(x)
+
+    # Create a new model
+    mod_model = tf.keras.Model(inputs=model.input, outputs=layer7)
+
+    # We should now have the same structure as the original Udacity version of VGG16,
+    # but still need to add the decoder and skip connections as before
 
     # Upsample by 2. We need to work our way down from a kernel depth of 4096
     # to just our number of classes (i.e. 2). Should we do this all in one go?
@@ -235,7 +257,7 @@ def add_layers(model, num_classes):
     # so now we should be at 160x576x2, same as original image size, 2 classes
 
     # Connect the layers
-    x1 = layer8(layer7_out)
+    x1 = layer8(layer7)
     x2 = layer4_squashed(layer4_out)
 
     # now we can add skip layer of this dimension taken from corresponding encoder layer
@@ -262,6 +284,7 @@ def add_layers(model, num_classes):
 #tests.test_layers(add_layers)
 
 
+
 def run():
     num_classes = 2 #  CW: just road or 'other'
 
@@ -273,37 +296,53 @@ def run():
 
     data_dir = './data'
     runs_dir = './runs'
-    tests.test_for_kitti_dataset(data_dir)
+    # tests.test_for_kitti_dataset(data_dir)
 
     quick_run_test = False # For debug
 
     # Walkthrough: maybe ~6 epochs to start with. Batches not too big because large amount of information.
     epochs = 2 if quick_run_test else 50 # Model pretty much converged after this time and no apparent overtraining
     batch_size = 1 if quick_run_test else 8 # 6 fitted my Quadro P3000 device without memory allocation warning
-    keep_prob = 0.7  # In original project used high dropout rate, eventually better 
-    learning_rate = 0.002
+    keep_prob = 0.65 # In original project used high dropout rate (0.5), eventually better, but now struggling to converge unless higher 
+    learning_rate = 0.001
+    num_classes = 2 # road or not road
+    step_size  = 50
+    gamma      = 0.5
 
-    # Load pretrained VGG16 including dropout layers not included in standard Keras version
-    model = load_vgg(keep_prob)
+    # Load pretrained VGG16
+    if (framework == 'keras'):
+        model = keras_load_vgg()
+        # CW: add our own layers to do transpose convolution skip connections from encoder
+        model = keras_add_layers(model, num_classes, keep_prob) # get final layer out
+    else:
+        model = torch_vgg.VggFcn(keep_prob=keep_prob, num_classes=num_classes)
+        print("\nTorch VGG after classifier removal and decoder additions:")
+        print(model)
 
-    # CW: add our own layers to do transpose convolution skip connections from encoder
-    model = add_layers(model, num_classes) # get final layer out
 
-    #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original
-    opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # Maybe works better?
-    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
+    # Prepare model to run
+    if (framework == 'keras'):
+        #opt = tf.keras.optimizers.Adam(learning_rate=learning_rate) # Original, converges slowly now needing small learning rate e.g. 0.0001 and 100+ epochs (250 was good but prob unnecessary, ~0.94 training accuracy though 1.5 loss)
+        opt = tf.keras.optimizers.Ftrl(learning_rate=learning_rate) # better when didn't have VGG 7x7 classifier layers; loss ~1 (keep_prob=0.7) ~0.56 (kp=0.9) accuracy ~0.93 recently
+        model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
+    else:
+        use_gpu = torch.cuda.is_available()
+        model.train() # Sets mode for dropout layers etc
+        if use_gpu:
+            device = torch.device("cuda:0")
+            model.to(device)
 
     # Walkthrough: correct labels will be 4D (batch, height, width, num classes)
     # CW: see my comments in get_batches_fn() to remind self of why... final (num classes) axis is one-hot
     #     with [0]=1 for background and [1]=1 for (any) road
 
     data_path = os.path.join(data_dir, 'data_road/training')
-    num_images, image_paths = helper.get_image_paths(data_path, quick_run_test)
+    image_paths = helper.get_image_paths(data_path, quick_run_test, True)
 
     if False:
         # Debug: re-emitting training data as images to check still looks reasonable. Which it does, so
         # input processing doesn't seem to be the problem
-        for i in range(num_images):
+        for i in range(len(image_paths)):
             x_debug_fn = helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test)
             x_debug_data = next(x_debug_fn)
             image_array = x_debug_data[0][0]
@@ -316,16 +355,51 @@ def run():
                 class_image = Image.fromarray(class_array_scaled, mode='L')
                 class_image.save(r'c:\temp\class_image_' + str(j) + '_' + str(i) + '.png')
 
-    # Note: there isn't a proper separation of training and validation
-    # data in this currently, so the result is likely to be
-    # overfitted to the training set
 
-    model.fit(x=helper.gen_batch_function(data_path, image_shape, num_classes, batch_size, quick_run_test),
-              batch_size=batch_size,
-              steps_per_epoch = num_images / batch_size,
-              epochs=epochs)
+    if (framework == 'keras'):
+        model.fit(x=helper.gen_batch_function(image_paths,
+                                              image_shape, num_classes, batch_size, quick_run_test),
+                batch_size=batch_size,
+                steps_per_epoch = len(image_paths) / batch_size,
+                epochs=epochs)
+    else:
+        # Create dataset object which gets array data from disk files
+        dataset = torch_vgg.TorchDataset(image_paths, image_shape, True)
 
-    helper.save_inference_samples(runs_dir, data_dir, model, image_shape, quick_run_test)
+        # And DataLoader for preprocessing
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+        # Then Torch style training
+        # Adapted from https://github.com/pochih/FCN-pytorch/blob/master/python/train.py
+        criterion = torch.nn.BCEWithLogitsLoss()
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+
+        for epoch in range(epochs):
+            scheduler.step()
+
+            ts = time.time()
+            for iter, batch in enumerate(dataloader):
+                optimizer.zero_grad()
+
+                if use_gpu:
+                    inputs = torch.autograd.Variable(batch[0].cuda()) # Source example indexed batch as dict though, 'X' & 'Y'
+                    labels = torch.autograd.Variable(batch[1].cuda())
+                else:
+                    inputs = torch.autograd.Variable(batch[0])
+                    labels = torch.autograd.Variable(batch[1])
+
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+
+                if iter % 10 == 0:
+                    print("epoch{}, iter{}, loss: {}".format(epoch, iter, loss.data))
+            
+            print("Finish epoch {}, time elapsed {}".format(epoch, time.time() - ts))
+
+    helper.save_inference_samples(framework, runs_dir, data_dir, model, image_shape, quick_run_test)
 
     # OPTIONAL: Apply the trained model to a video
 
